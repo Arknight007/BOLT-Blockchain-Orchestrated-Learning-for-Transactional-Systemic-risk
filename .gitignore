@@ -1,12 +1,13 @@
 # --- secrets: never commit ---
 .env
 .env.*
+!.env.example
 *.key
 *.pem
 
 # --- data: raw responses are cached locally, never versioned ---
-data/raw/
-data/interim/
+data/raw/*
+data/interim/*
 !data/raw/.gitkeep
 !data/interim/.gitkeep
 *.parquet.tmp
@@ -28,6 +29,10 @@ htmlcov/
 node_modules/
 artifacts/
 cache/
+
+# --- runtime artefacts ---
+outputs/bolt.log
+outputs/*.log
 
 # --- os ---
 Thumbs.db
