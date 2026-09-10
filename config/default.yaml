@@ -1,0 +1,167 @@
+# BOLT - single source of truth for every parameter (BOLT_SPEC.md Section 2).
+# Rule 12.x: no magic numbers anywhere in the code. If a number matters, it lives here.
+
+project:
+  name: "BOLT"
+  seed: 42                       # global seed; every model seed derives from or matches this
+
+paths:
+  raw:        "data/raw"
+  interim:    "data/interim"
+  processed:  "data/processed"
+  outputs:    "outputs"
+  figures:    "outputs/figures"
+  tables:     "outputs/tables"
+  predictions: "outputs/predictions"
+
+data:
+  start_date: "2020-01-01"
+  end_date:   "2025-12-31"
+  frequency:  "1d"
+  # Rule 12.3 - fail loudly. If a required column's coverage over the requested
+  # window falls below this, `bolt build` refuses rather than filling with zeros.
+  min_coverage: 0.80
+
+assets:
+  universe_file: "config/assets.yaml"
+  primary: "BTC"
+
+ingest:
+  cache_dir: "data/raw"
+  # Exponential backoff for rate-limited public APIs.
+  retry:
+    max_attempts: 5
+    backoff_base_seconds: 2.0
+    backoff_max_seconds: 60.0
+  timeout_seconds: 30
+  sources:
+    coingecko:
+      enabled: true
+      base_url: "https://api.coingecko.com/api/v3"
+      api_key_env_var: "BOLT_COINGECKO_KEY"    # optional; free tier works without
+      rate_limit_per_minute: 10
+    binance:
+      enabled: true
+      base_url: "https://api.binance.com"
+      rate_limit_per_minute: 1200
+    etherscan:
+      enabled: true
+      base_url: "https://api.etherscan.io/v2/api"
+      chain_id: 1
+      api_key_env_var: "BOLT_ETHERSCAN_KEY"
+      rate_limit_per_minute: 300
+    cryptopanic:
+      enabled: true
+      base_url: "https://cryptopanic.com/api/developer/v2"
+      api_key_env_var: "BOLT_CRYPTOPANIC_KEY"
+      rate_limit_per_minute: 60
+    reddit:
+      enabled: true
+      base_url: "https://oauth.reddit.com"
+      client_id_env_var: "BOLT_REDDIT_CLIENT_ID"
+      client_secret_env_var: "BOLT_REDDIT_CLIENT_SECRET"
+      user_agent: "bolt-research/0.1 (capstone; contact via repo)"
+      subreddits: ["CryptoCurrency", "Bitcoin", "ethereum"]
+      rate_limit_per_minute: 60
+
+labeling:                        # G1
+  drawdown_threshold: 0.20       # 20% decline
+  horizon_days: 14
+  method: "forward_min"          # min of forward window vs today's close
+  sensitivity_grid:              # sensitivity analysis - required, not optional
+    thresholds: [0.15, 0.20, 0.25]
+    horizons:   [7, 14, 30]
+
+windows:
+  lookback_days: 30
+  stride: 1
+
+features:
+  technical:  [realized_vol_7, realized_vol_14, realized_vol_30, volume_z_20,
+               drawdown_depth, drawdown_duration, rsi_14, momentum_10, atr_14]
+  onchain:    [exchange_netflow_7, whale_tx_count, active_addresses,
+               stablecoin_netflow, nvt_ratio]
+  sentiment:  [headline_polarity_1d, headline_polarity_7d, headline_count_z,
+               negative_ratio_7d]
+  contagion:  [mean_pairwise_corr_30, corr_dispersion_30, btc_lead_lag_5,
+               eigen_centrality_30]
+  params:
+    rsi_period: 14
+    atr_period: 14
+    momentum_period: 10
+    volume_z_window: 20
+    realized_vol_windows: [7, 14, 30]
+    nvt_window: 7
+    onchain_netflow_window: 7
+    sentiment_windows: [1, 7]
+    sentiment_count_z_window: 30
+    contagion_window: 30
+    lead_lag_max_lag: 5
+    corr_graph_min_edge_weight: 0.30   # edges below this are dropped before centrality
+  sentiment_backend:
+    backend: "lexicon"           # "lexicon" (default, deterministic) | "finbert" (optional extra)
+    finbert_model: "ProsusAI/finbert"
+    max_headline_chars: 512
+
+split:
+  scheme: "walk_forward_expanding"
+  folds:
+    - {train_end: "2021-12-31", test: ["2022-01-01","2022-12-31"]}
+    - {train_end: "2022-12-31", test: ["2023-01-01","2023-12-31"]}
+    - {train_end: "2023-12-31", test: ["2024-01-01","2024-12-31"]}
+    - {train_end: "2024-12-31", test: ["2025-01-01","2025-12-31"]}
+  # Guard 4: must be >= windows.lookback_days + labeling.horizon_days (30 + 14 = 44).
+  # Validated at config load; a smaller value is a hard error, not a warning.
+  embargo_days: 45
+
+imbalance:
+  method: "class_weight"                # primary
+  compare_with: ["smote", "none"]       # ablation vs the base paper's SMOTE
+  smote:
+    k_neighbors: 5
+    seed: 42
+
+models:
+  lstm:   {hidden: 32, epochs: 60, lr: 0.003, seed: 42, dropout: 0.1, clip_norm: 5.0, batch_size: 64}
+  gru:    {hidden: 32, epochs: 60, lr: 0.003, seed: 42, dropout: 0.1, clip_norm: 5.0, batch_size: 64}
+  xgb:    {n_estimators: 400, max_depth: 4, learning_rate: 0.05, seed: 42}
+  rf:     {n_estimators: 400, max_depth: 8, seed: 42}
+  logreg: {C: 1.0, max_iter: 2000, seed: 42}
+  mlp:    {hidden_layer_sizes: [64, 32], max_iter: 500, seed: 42}
+  rule:   {vol_quantile: 0.90, vol_window: 14, quantile_window: 252}
+
+evaluation:
+  primary_metric: "pr_auc"
+  report: ["pr_auc","f1","precision","recall","false_alarm_rate","brier","lead_time_days"]
+  forbid_accuracy: true          # enforced in code - evaluate/metrics.py guard_metrics()
+  decision_threshold: 0.50       # default operating point; tuned per fold on the train PR curve
+  lead_time:
+    sustained_days: 2            # >= 2 consecutive days above threshold to count as a warning
+
+crisis_episodes:                 # for episode-level analysis (G4)
+  - {name: "May 2021 selloff", start: "2021-05-10", end: "2021-05-25"}
+  - {name: "Terra/LUNA",       start: "2022-05-07", end: "2022-05-16"}
+  - {name: "FTX collapse",     start: "2022-11-06", end: "2022-11-14"}
+  - {name: "USDC depeg",       start: "2023-03-10", end: "2023-03-14"}
+
+explain:
+  top_k: 5                       # top-k features for Jaccard overlap in consistency scores
+  analogue:
+    k: 3
+    exclude_days: 90
+    metric: "cosine"
+    outcome_window_days: 30
+
+chain:
+  network: "polygon_amoy"
+  chain_id: 80002
+  rpc_env_var: "BOLT_RPC_URL"
+  private_key_env_var: "BOLT_PRIVATE_KEY"       # NEVER hardcode; read from env only
+  contract_address_file: "outputs/contract_address.txt"
+  solc_version: "0.8.20"
+  gas_limit: 200000
+  confirmation_blocks: 2
+
+logging:
+  level: "INFO"
+  file: "outputs/bolt.log"

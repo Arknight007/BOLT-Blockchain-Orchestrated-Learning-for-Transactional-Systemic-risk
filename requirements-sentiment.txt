@@ -1,0 +1,6 @@
+# Optional extra: transformer sentiment backend (features.sentiment.backend: "finbert").
+# Local inference only — BOLT never trains or fine-tunes a language model.
+# The NumPy LSTM/GRU never touch torch; this dependency is confined to ingest/sentiment scoring.
+torch>=2.4
+transformers>=4.44
+tokenizers>=0.19

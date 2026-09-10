@@ -1,0 +1,34 @@
+# --- secrets: never commit ---
+.env
+.env.*
+*.key
+*.pem
+
+# --- data: raw responses are cached locally, never versioned ---
+data/raw/
+data/interim/
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+*.parquet.tmp
+
+# --- python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ipynb_checkpoints/
+.coverage
+htmlcov/
+
+# --- solidity / node ---
+node_modules/
+artifacts/
+cache/
+
+# --- os ---
+Thumbs.db
+.DS_Store

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bolt"
+version = "0.1.0"
+description = "Cryptocurrency crash early warning with auditable on-chain prediction commitments"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+
+[project.scripts]
+bolt = "bolt.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "network: test requires live API access (deselect with -m 'not network')",
+    "slow: long-running test",
+    "chain: test requires a testnet RPC endpoint",
+]
+filterwarnings = ["error::DeprecationWarning:bolt.*"]

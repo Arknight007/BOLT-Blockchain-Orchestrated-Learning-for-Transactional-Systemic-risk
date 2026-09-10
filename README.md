@@ -1,0 +1,145 @@
+# BOLT
+
+**Blockchain-committed early warning for cryptocurrency crashes.**
+
+BOLT predicts the probability of a severe market decline within a forward horizon,
+explains every warning in terms of named risk drivers, and commits each prediction
+to a public blockchain **before the outcome is known**, so the track record is
+independently auditable rather than merely asserted.
+
+Final-year research capstone. The full build specification is [BOLT_SPEC.md](BOLT_SPEC.md);
+the panel-facing rationale is `BOLT_Base_Paper_Answers.pdf`.
+
+---
+
+## Base paper
+
+Ke, Z., Cao, Y., Chen, Z., Yin, Y., He, S., Cheng, Y. (2025).
+*Early warning of cryptocurrency reversal risks via multi-source data.*
+**Finance Research Letters**, Article 107890, Elsevier.
+
+An LSTM on blockchain metrics, social sentiment and regulatory signals, predicting
+pin-bar reversal events on Bitcoin. Reported F1 ≈ 0.703 (rolling-window 0.64–0.72),
+with SHAP attributing >33% of predictive power to blockchain-native features and
+SMOTE improving rare-event recall by ~19%.
+
+## The five gaps, and the module that closes each
+
+| Gap | In the base paper | What BOLT does | Module |
+|---|---|---|---|
+| **G1** | Target is a candlestick pattern (pin-bar reversal), not an economically meaningful event | Predicts a drawdown beyond a threshold within a forward horizon | [`src/bolt/labeling/crash.py`](src/bolt/labeling/crash.py) |
+| **G2** | Single asset (Bitcoin); no cross-asset structure — the authors' own stated future work | Multi-asset, with correlation, lead-lag and contagion features | [`src/bolt/features/contagion.py`](src/bolt/features/contagion.py) |
+| **G3** | Comparison set omits gradient boosting and GRU | Benchmarks LSTM, GRU, XGBoost, RF, LogReg, MLP and a volatility rule on identical features | [`src/bolt/models/`](src/bolt/models/) |
+| **G4** | SHAP applied, but explanations never tested for stability across separate episodes | Measures whether the same drivers recur across independent crisis episodes | [`src/bolt/explain/consistency.py`](src/bolt/explain/consistency.py) |
+| **G5** | Results rest on a private backtest no reader can verify | Hashes and commits every prediction on-chain before the outcome | [`src/bolt/chain/`](src/bolt/chain/) |
+
+**G4 and G5 are the novel contributions.** G5 is the methodological one: every
+predictive paper in this field asks the reader to trust a backtest that could in
+principle have been tuned after the fact. A cryptographic commitment on a public
+ledger is the only mechanism that distinguishes foresight from hindsight fitting.
+G4 is the research question: whether crash drivers generalise across crises, or
+whether every crisis carries its own signature, is genuinely unanswered — and
+yields a reportable result in either direction.
+
+---
+
+## Quick start
+
+```bash
+git clone <repo> && cd bolt
+python -m venv .venv
+. .venv/Scripts/activate          # Windows;  source .venv/bin/activate on Linux/macOS
+pip install -r requirements.txt
+pip install -e .
+cp .env.example .env              # fill in API keys; .env is gitignored
+bolt --help
+```
+
+Full reproduction, raw data to every figure and table:
+
+```bash
+bash scripts/run_all.sh
+```
+
+## Commands
+
+```
+bolt ingest   --config config/default.yaml   # fetch + cache market, on-chain and news data
+bolt build                                   # align panel, build features and labels, freeze dataset
+bolt train    --model lstm|gru|xgb|rf|logreg|mlp|rule|all
+bolt evaluate --all --report                 # walk-forward metrics -> outputs/tables, outputs/figures
+bolt explain  --model lstm --consistency     # attribution + cross-episode consistency (G4)
+bolt predict  --asset BTC --as-of 2025-11-01 --commit    # score and commit on-chain (G5)
+bolt verify   --payload outputs/predictions/<id>.json --id <id>   # independent verification
+```
+
+## Data
+
+Every raw observation comes from a public API or directly from the public
+blockchain. Nothing is private, nothing is purchased, nothing is fabricated. The
+whole dataset regenerates from the scripts in [`src/bolt/ingest/`](src/bolt/ingest/).
+
+| Source | What we take | Why it is authentic |
+|---|---|---|
+| Binance public API | Historical OHLCV candlesticks | The venue where the trades actually occurred — a primary source, not an aggregator |
+| CoinGecko API | Price, volume, market cap, dominance | Public documented endpoints, widely used in published research |
+| Etherscan / public endpoints | Exchange in/outflows, whale movements, active addresses | Read from the public ledger — cryptographically verifiable |
+| CryptoPanic / news RSS | Timestamped headlines | Published items carrying verifiable publication timestamps |
+| Reddit public API | Community discussion | Public posts with API-provided timestamps |
+
+The asset universe is frozen in [`config/assets.yaml`](config/assets.yaml) before
+any modelling and never edited afterwards. `data/processed/DATA_CARD.md` is
+generated by `bolt build` and records per-column source, coverage, missing-data
+rate per year, every documented proxy substitution, and the SHA-256 of the frozen
+dataset.
+
+## Honesty constraints
+
+These are enforced in code, not aspirations.
+
+1. **Accuracy is never reported.** With a ~2% positive rate, always predicting
+   "no crash" scores above 95%. `evaluate/metrics.py::guard_metrics` raises on
+   any attempt to compute it, and `config.py` rejects a config that switches the
+   ban off. The base paper omits accuracy for the same reason.
+2. **Five leakage guards run as runtime assertions**, not comments — point-in-time
+   features, news-timestamp enforcement, no target leakage, a train/test embargo
+   of at least `lookback + horizon` days, and scalers fitted on the training fold
+   only. See BOLT_SPEC.md §4 and `tests/test_leakage.py`.
+3. **Fail loudly.** A missing source raises. A failed guard raises. Missing
+   features are never silently zero-filled.
+4. **Nothing is fabricated.** If a number was not computed by the pipeline, it
+   does not appear in `outputs/`. Unimplemented commands exit non-zero rather
+   than returning a plausible-looking result.
+5. **If a simpler model wins, that is the finding.** The volatility-threshold rule
+   exists to test whether the deep models earn their complexity.
+6. An F1 around 0.70 is the honest difficulty of this problem. Anything above
+   0.95 on rare-event crash prediction should be read as evidence of leakage.
+
+## Build status
+
+| Phase | Contents | Status |
+|---|---|---|
+| 0 | Scaffold, validated config, CLI, logging, tests | ✅ complete |
+| 1 | Ingestion with caching, panel alignment, data card, dataset freeze | ⬜ next |
+| 2 | Crash labelling + sensitivity table, four feature families, five leakage guards | ⬜ |
+| 3 | NumPy LSTM/GRU with gradient checks, seven-model bench, embargoed walk-forward | ⬜ |
+| 4 | SHAP + gradient attribution, episode profiles, consistency scores (G4) | ⬜ |
+| 5 | `PredictionRegistry.sol`, commit and verify paths (G5) | ⬜ |
+| 6 | Demo notebook and one-command reproduction | ⬜ |
+
+Phases 1–4 constitute the 50% implementation for the interim review.
+
+## Layout
+
+```
+config/     default.yaml (every parameter) + assets.yaml (frozen universe)
+data/       raw/ (cached API responses, gitignored) -> interim/ -> processed/ (frozen + hashed)
+src/bolt/   ingest -> align -> features + labeling -> windows -> models -> evaluate -> explain -> chain
+contracts/  PredictionRegistry.sol and its deploy script
+outputs/    figures/, tables/, predictions/
+tests/      leakage guards, gradient checks, reproducibility, CLI and config contracts
+```
+
+## License
+
+MIT.

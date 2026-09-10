@@ -1,0 +1,16 @@
+2026-09-11T00:30:29+0530 INFO     bolt.cli                     configuration loaded from D:\Capstone\config\default.yaml
+2026-09-11T00:30:29+0530 INFO     bolt.cli                     universe: 10 assets (8 labelled targets), 22 features, 4 walk-forward folds
+2026-09-11T00:30:29+0530 ERROR    bolt.cli                     `bolt build` (G1, G2) lands in Phase 2. See BOLT_SPEC.md Section 11 for the build order and that phase's acceptance criteria.
+2026-09-11T00:30:29+0530 ERROR    bolt.cli                     configuration error: C:\Users\iamet\AppData\Local\Temp\pytest-of-iamet\pytest-2\test_bad_config_exits_two0\broken.yaml: missing required section(s) ['paths', 'data', 'assets', 'ingest', 'labeling', 'windows', 'features', 'split', 'imbalance', 'models', 'evaluation', 'crisis_episodes', 'explain', 'chain', 'logging']
+2026-09-11T00:30:47+0530 INFO     bolt.cli                     configuration loaded from D:\Capstone\config\default.yaml
+2026-09-11T00:30:47+0530 INFO     bolt.cli                     universe: 10 assets (8 labelled targets), 22 features, 4 walk-forward folds
+2026-09-11T00:30:47+0530 ERROR    bolt.cli                     `bolt build` (G1, G2) lands in Phase 2. See BOLT_SPEC.md Section 11 for the build order and that phase's acceptance criteria.
+2026-09-11T00:30:47+0530 ERROR    bolt.cli                     configuration error: C:\Users\iamet\AppData\Local\Temp\pytest-of-iamet\pytest-3\test_bad_config_exits_two0\broken.yaml: missing required section(s) ['paths', 'data', 'assets', 'ingest', 'labeling', 'windows', 'features', 'split', 'imbalance', 'models', 'evaluation', 'crisis_episodes', 'explain', 'chain', 'logging']
+2026-09-11T00:31:46+0530 INFO     bolt.cli                     configuration loaded from D:\Capstone\config\default.yaml
+2026-09-11T00:31:46+0530 INFO     bolt.cli                     universe: 10 assets (8 labelled targets), 22 features, 4 walk-forward folds
+2026-09-11T00:31:46+0530 ERROR    bolt.cli                     `bolt build` (G1, G2) lands in Phase 2. See BOLT_SPEC.md Section 11 for the build order and that phase's acceptance criteria.
+2026-09-11T00:31:46+0530 ERROR    bolt.cli                     configuration error: C:\Users\iamet\AppData\Local\Temp\pytest-of-iamet\pytest-4\test_bad_config_exits_two0\broken.yaml: missing required section(s) ['paths', 'data', 'assets', 'ingest', 'labeling', 'windows', 'features', 'split', 'imbalance', 'models', 'evaluation', 'crisis_episodes', 'explain', 'chain', 'logging']
+2026-09-11T00:32:35+0530 ERROR    bolt.cli                     configuration error: split.embargo_days=10 violates Guard 4: it must be >= windows.lookback_days (30) + labeling.horizon_days (14) = 44. A shorter embargo lets a training window's label period reach into the test range.
+2026-09-11T00:32:36+0530 INFO     bolt.cli                     configuration loaded from D:\Capstone\config\default.yaml
+2026-09-11T00:32:36+0530 INFO     bolt.cli                     universe: 10 assets (8 labelled targets), 22 features, 4 walk-forward folds
+2026-09-11T00:32:36+0530 ERROR    bolt.cli                     `bolt build` (G1, G2) lands in Phase 2. See BOLT_SPEC.md Section 11 for the build order and that phase's acceptance criteria.

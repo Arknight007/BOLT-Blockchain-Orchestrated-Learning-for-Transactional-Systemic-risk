@@ -1,0 +1,84 @@
+# BOLT asset universe - FROZEN. Never edited after Phase 1 (BOLT_SPEC.md Section 2).
+#
+# Universe as declared in BOLT_Base_Paper_Answers.pdf, Section 12.
+#
+# Each asset carries two fields the pipeline depends on:
+#   role     - "target"  : crash labels are produced for this asset
+#              "context" : included in the cross-asset panel for contagion
+#                          features (G2) but never labelled or predicted.
+#              Stablecoins are context-only: a 20% drawdown in a token pegged
+#              to the dollar is a de-peg, not a market crash, so labelling them
+#              would produce an all-negative column and silently distort the
+#              positive-class rate. Their FLOWS are exactly what we want as a
+#              feature (see the USDC de-peg episode), which is why they stay in.
+#   inception - first date with reliable public market data. The panel is
+#              deliberately RAGGED: assets are absent before this date rather
+#              than back-filled. Guard 1 (point-in-time) forbids inventing history.
+#
+# NOTE ON SHORT HISTORIES: HYPE (Nov 2024) and ASTER (Sep 2025) post-date every
+# crisis episode in config/default.yaml. They can never contribute to episode-level
+# analysis (G4) and contribute to contagion features only in the final fold.
+# They are retained because the universe is frozen and honesty about coverage is
+# the point; data/processed/DATA_CARD.md reports their coverage explicitly.
+
+universe:
+  - symbol: BTC
+    name: Bitcoin
+    coingecko_id: bitcoin
+    binance_symbol: BTCUSDT
+    role: target
+    inception: "2013-04-28"
+  - symbol: ETH
+    name: Ethereum
+    coingecko_id: ethereum
+    binance_symbol: ETHUSDT
+    role: target
+    inception: "2015-08-07"
+  - symbol: BNB
+    name: BNB
+    coingecko_id: binancecoin
+    binance_symbol: BNBUSDT
+    role: target
+    inception: "2017-07-25"
+  - symbol: XRP
+    name: XRP
+    coingecko_id: ripple
+    binance_symbol: XRPUSDT
+    role: target
+    inception: "2013-08-04"
+  - symbol: LINK
+    name: Chainlink
+    coingecko_id: chainlink
+    binance_symbol: LINKUSDT
+    role: target
+    inception: "2017-09-20"
+  - symbol: UNI
+    name: Uniswap
+    coingecko_id: uniswap
+    binance_symbol: UNIUSDT
+    role: target
+    inception: "2020-09-17"
+  - symbol: HYPE
+    name: Hyperliquid
+    coingecko_id: hyperliquid
+    binance_symbol: null          # not listed on Binance spot; CoinGecko only
+    role: target
+    inception: "2024-11-29"
+  - symbol: ASTER
+    name: Aster
+    coingecko_id: aster-2
+    binance_symbol: ASTERUSDT
+    role: target
+    inception: "2025-09-17"
+  - symbol: USDT
+    name: Tether
+    coingecko_id: tether
+    binance_symbol: null          # quote currency, not a spot pair against itself
+    role: context
+    inception: "2015-02-25"
+  - symbol: DAI
+    name: Dai
+    coingecko_id: dai
+    binance_symbol: DAIUSDT
+    role: context
+    inception: "2019-11-22"
