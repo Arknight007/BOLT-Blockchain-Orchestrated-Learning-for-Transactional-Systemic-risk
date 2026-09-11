@@ -81,8 +81,13 @@ features:
                drawdown_depth, drawdown_duration, rsi_14, momentum_10, atr_14]
   onchain:    [exchange_netflow_7, whale_tx_count, active_addresses,
                stablecoin_netflow, nvt_ratio]
-  sentiment:  [headline_polarity_1d, headline_polarity_7d, headline_count_z,
-               negative_ratio_7d]
+  # headline_count_z is REMOVED from the active feature set: it requires a
+  # CryptoPanic API key, no key is configured, and its coverage is therefore 0%.
+  # Rule 12.3 forbids zero-filling it, and enforce_coverage() refuses to build
+  # with it present. The removal and its reason are recorded in DATA_CARD.md.
+  # Restore this line verbatim once BOLT_CRYPTOPANIC_KEY is set:
+  #   sentiment: [headline_polarity_1d, headline_polarity_7d, headline_count_z, negative_ratio_7d]
+  sentiment:  [headline_polarity_1d, headline_polarity_7d, negative_ratio_7d]
   contagion:  [mean_pairwise_corr_30, corr_dispersion_30, btc_lead_lag_5,
                eigen_centrality_30]
   params:

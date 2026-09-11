@@ -23,6 +23,7 @@ shap>=0.46               # TreeExplainer / LinearExplainer (G4)
 # Ingestion
 requests>=2.32
 urllib3>=2.2
+truststore>=0.9          # use the OS certificate store; see ingest/http.py
 
 # Sentiment
 # Default backend is a deterministic finance-lexicon scorer: no heavy dependency,
