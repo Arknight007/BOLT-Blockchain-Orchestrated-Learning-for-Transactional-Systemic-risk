@@ -237,8 +237,8 @@ def run_cycle(
     analogue_source = None
     if windows is not None:
         X, _, meta = windows
-        analogue_source = (scaler.transform(X) if scaler is not None else X,
-                           meta, panel["close"])
+        # Unscaled: the pipeline scales only the masked asset slice.
+        analogue_source = (X, meta, panel["close"])
 
     predictions, errors = predict_all(
         cfg, store, panel, as_of, models, scaler, commit, analogue_source

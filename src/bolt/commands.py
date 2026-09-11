@@ -301,8 +301,8 @@ def do_predict(cfg: BoltConfig, asset: str, as_of: str, model: str = "lstm",
     # cites a precedent - both were silently dead here until it was spotted.
     try:
         X, _, meta = load_windows(cfg)
-        analogue_source = (scaler.transform(X) if scaler is not None else X,
-                           meta, panel["close"])
+        # Unscaled: the pipeline scales only the masked asset slice.
+        analogue_source = (X, meta, panel["close"])
     except Exception as exc:  # noqa: BLE001
         log.warning("analogues unavailable (%s); the precedent check will not fire", exc)
         analogue_source = None

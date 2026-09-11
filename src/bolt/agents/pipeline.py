@@ -124,11 +124,19 @@ class ChainGuardPipeline:
         """
         Args:
             analogue_source: optional ``(X, meta, prices)`` for historical
-                analogue retrieval. Supplying it is what lets the Skeptic run
-                its precedent check; without it that check silently never fires,
-                which is how it came to be dead in two of three entry points.
+                analogue retrieval, with X UNSCALED. Supplying it is what lets
+                the Skeptic run its precedent check; without it that check
+                silently never fires, which is how it came to be dead in two of
+                three entry points.
+
+                X is scaled here, after masking to the asset in question, rather
+                than by the caller. Scaling the whole tensor up front copies
+                every asset's windows to use one asset's - 59 MiB on the real
+                panel, which was enough to abort the demo notebook with a
+                MemoryError.
         """
         self.cfg = cfg
+        self.scaler = scaler
         self.analogue_source = analogue_source
         self.market = MarketIntelligenceAgent()
         self.onchain = OnChainIntelligenceAgent()
@@ -162,7 +170,11 @@ class ChainGuardPipeline:
             if mask.sum() < 10:
                 return []
 
-            flat = flatten_windows(X[mask])
+            # Mask first, scale second: one asset's slice instead of all of them.
+            subset = X[mask]
+            if self.scaler is not None:
+                subset = self.scaler.transform(subset)
+            flat = flatten_windows(subset)
             sub_meta = meta[mask].reset_index(drop=True)
             ends = pd.to_datetime(sub_meta["window_end"], utc=True)
             eligible = np.flatnonzero((ends <= context.as_of).to_numpy())
