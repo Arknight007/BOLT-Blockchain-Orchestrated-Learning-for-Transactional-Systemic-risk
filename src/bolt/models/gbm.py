@@ -25,11 +25,13 @@ class XGBModel:
     name = "xgb"
 
     def __init__(self, n_estimators: int = 400, max_depth: int = 4,
-                 learning_rate: float = 0.05, seed: int = 42) -> None:
+                 learning_rate: float = 0.05, seed: int = 42, n_jobs: int = 1) -> None:
         self.n_estimators = int(n_estimators)
         self.max_depth = int(max_depth)
         self.learning_rate = float(learning_rate)
         self.seed = int(seed)
+        # n_jobs=1 keeps results bit-reproducible; see config/default.yaml.
+        self.n_jobs = int(n_jobs)
         self.model: XGBClassifier | None = None
 
     def fit(self, X: np.ndarray, y: np.ndarray, sample_weight: np.ndarray | None = None) -> None:
@@ -44,7 +46,7 @@ class XGBModel:
             scale_pos_weight=weights[1] / weights[0],
             eval_metric="aucpr",
             tree_method="hist",
-            n_jobs=4,
+            n_jobs=self.n_jobs,
             verbosity=0,
         )
         self.model.fit(flatten_windows(X), y, sample_weight=sample_weight)

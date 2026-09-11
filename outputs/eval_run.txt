@@ -19,3 +19,72 @@
 2026-09-11T08:51:58+0530 INFO     bolt.evaluate.report           xgb     fold3_2024       pr_auc=0.148 (base 0.083) f1=0.184 recall=0.248 far=0.132
 2026-09-11T08:52:12+0530 INFO     bolt.evaluate.report           xgb     fold4_2025       pr_auc=0.133 (base 0.081) f1=0.044 recall=0.026 far=0.012
 2026-09-11T08:52:12+0530 INFO     bolt.evaluate.report         evaluating rf
+2026-09-11T08:52:14+0530 INFO     bolt.evaluate.report           rf      fold1_2022       pr_auc=0.335 (base 0.151) f1=0.173 recall=0.100 far=0.010
+2026-09-11T08:52:20+0530 INFO     bolt.evaluate.report           rf      fold2_2023       pr_auc=0.035 (base 0.019) f1=0.071 recall=0.171 far=0.070
+2026-09-11T08:52:27+0530 INFO     bolt.evaluate.report           rf      fold3_2024       pr_auc=0.143 (base 0.083) f1=0.054 recall=0.042 far=0.048
+2026-09-11T08:52:37+0530 INFO     bolt.evaluate.report           rf      fold4_2025       pr_auc=0.166 (base 0.081) f1=0.205 recall=0.462 far=0.267
+2026-09-11T08:52:37+0530 INFO     bolt.evaluate.report         evaluating logreg
+2026-09-11T08:52:38+0530 INFO     bolt.evaluate.report           logreg  fold1_2022       pr_auc=0.320 (base 0.151) f1=0.136 recall=0.079 far=0.013
+2026-09-11T08:52:39+0530 INFO     bolt.evaluate.report           logreg  fold2_2023       pr_auc=0.113 (base 0.019) f1=0.056 recall=0.732 far=0.467
+2026-09-11T08:52:40+0530 INFO     bolt.evaluate.report           logreg  fold3_2024       pr_auc=0.083 (base 0.083) f1=0.035 recall=0.024 far=0.033
+2026-09-11T08:52:43+0530 INFO     bolt.evaluate.report           logreg  fold4_2025       pr_auc=0.060 (base 0.081) f1=0.059 recall=0.167 far=0.392
+2026-09-11T08:52:43+0530 INFO     bolt.evaluate.report         evaluating mlp
+2026-09-11T08:52:44+0530 INFO     bolt.evaluate.report           mlp     fold1_2022       pr_auc=0.136 (base 0.151) f1=0.000 recall=0.000 far=0.011
+2026-09-11T08:52:46+0530 INFO     bolt.evaluate.report           mlp     fold2_2023       pr_auc=0.028 (base 0.019) f1=0.038 recall=1.000 far=0.958
+2026-09-11T08:52:49+0530 INFO     bolt.evaluate.report           mlp     fold3_2024       pr_auc=0.102 (base 0.083) f1=0.080 recall=0.061 far=0.041
+2026-09-11T08:52:52+0530 INFO     bolt.evaluate.report           mlp     fold4_2025       pr_auc=0.072 (base 0.081) f1=0.052 recall=0.058 far=0.103
+2026-09-11T08:52:52+0530 INFO     bolt.evaluate.report         evaluating rule
+2026-09-11T08:52:52+0530 INFO     bolt.models.rule             rule: volatility threshold at the 90th percentile = 0.9367
+2026-09-11T08:52:52+0530 INFO     bolt.evaluate.report           rule    fold1_2022       pr_auc=0.155 (base 0.151) f1=0.080 recall=0.061 far=0.079
+2026-09-11T08:52:53+0530 INFO     bolt.models.rule             rule: volatility threshold at the 90th percentile = 1.1553
+2026-09-11T08:52:53+0530 INFO     bolt.evaluate.report           rule    fold2_2023       pr_auc=0.014 (base 0.019) f1=0.020 recall=0.098 far=0.167
+2026-09-11T08:52:53+0530 INFO     bolt.models.rule             rule: volatility threshold at the 90th percentile = 1.2661
+2026-09-11T08:52:53+0530 INFO     bolt.evaluate.report           rule    fold3_2024       pr_auc=0.117 (base 0.083) f1=0.166 recall=0.764 far=0.675
+2026-09-11T08:52:53+0530 INFO     bolt.models.rule             rule: volatility threshold at the 90th percentile = 1.2299
+2026-09-11T08:52:54+0530 INFO     bolt.evaluate.report           rule    fold4_2025       pr_auc=0.113 (base 0.081) f1=0.182 recall=0.731 far=0.552
+
+elapsed 810s
+
+=== MODEL COMPARISON ===
+                 pr_auc               f1        precision           recall false_alarm_rate            brier  pr_auc_baseline  pr_auc_lift  n_test_samples
+model                                                                                                                                                     
+rf      0.170 +/- 0.107  0.126 +/- 0.065  0.221 +/- 0.241  0.194 +/- 0.161  0.099 +/- 0.099  0.114 +/- 0.031           0.0834       0.0864            8292
+logreg  0.144 +/- 0.103  0.072 +/- 0.039  0.159 +/- 0.203  0.250 +/- 0.283  0.226 +/- 0.205  0.312 +/- 0.250           0.0834       0.0607            8292
+xgb     0.134 +/- 0.037  0.127 +/- 0.071  0.122 +/- 0.049  0.302 +/- 0.189  0.206 +/- 0.152  0.089 +/- 0.040           0.0834       0.0506            8292
+lstm    0.102 +/- 0.059  0.100 +/- 0.064  0.071 +/- 0.046  0.363 +/- 0.288  0.365 +/- 0.244  0.177 +/- 0.063           0.0834       0.0182            8292
+rule    0.100 +/- 0.052  0.112 +/- 0.066  0.082 +/- 0.042  0.413 +/- 0.335  0.368 +/- 0.251  0.195 +/- 0.060           0.0834       0.0168            8292
+gru     0.099 +/- 0.049  0.122 +/- 0.068  0.082 +/- 0.040  0.473 +/- 0.297  0.443 +/- 0.263  0.272 +/- 0.135           0.0834       0.0154            8292
+mlp     0.085 +/- 0.040  0.043 +/- 0.029  0.046 +/- 0.045  0.280 +/- 0.417  0.278 +/- 0.394  0.238 +/- 0.146           0.0834       0.0012            8292
+
+=== LEAD TIME (BTC) ===
+ model          episode      start  lead_time_days  warned
+  lstm May 2021 selloff 2021-05-10             NaN   False
+  lstm       Terra/LUNA 2022-05-07            21.0    True
+  lstm     FTX collapse 2022-11-06            90.0    True
+  lstm       USDC depeg 2023-03-10            90.0    True
+   gru May 2021 selloff 2021-05-10             NaN   False
+   gru       Terra/LUNA 2022-05-07            90.0    True
+   gru     FTX collapse 2022-11-06            88.0    True
+   gru       USDC depeg 2023-03-10            90.0    True
+   xgb May 2021 selloff 2021-05-10             NaN   False
+   xgb       Terra/LUNA 2022-05-07            65.0    True
+   xgb     FTX collapse 2022-11-06            90.0    True
+   xgb       USDC depeg 2023-03-10            88.0    True
+    rf May 2021 selloff 2021-05-10             NaN   False
+    rf       Terra/LUNA 2022-05-07            17.0    True
+    rf     FTX collapse 2022-11-06             NaN   False
+    rf       USDC depeg 2023-03-10            39.0    True
+logreg May 2021 selloff 2021-05-10             NaN   False
+logreg       Terra/LUNA 2022-05-07             NaN   False
+logreg     FTX collapse 2022-11-06             NaN   False
+logreg       USDC depeg 2023-03-10             4.0    True
+   mlp May 2021 selloff 2021-05-10             NaN   False
+   mlp       Terra/LUNA 2022-05-07             NaN   False
+   mlp     FTX collapse 2022-11-06            86.0    True
+   mlp       USDC depeg 2023-03-10             NaN   False
+  rule May 2021 selloff 2021-05-10             NaN   False
+  rule       Terra/LUNA 2022-05-07             NaN   False
+  rule     FTX collapse 2022-11-06            -4.0    True
+  rule       USDC depeg 2023-03-10             NaN   False
+
+wrote: {'model_comparison': 'D:\\Capstone\\outputs\\tables\\model_comparison.csv', 'per_fold': 'D:\\Capstone\\outputs\\tables\\model_comparison_per_fold.csv', 'lead_time': 'D:\\Capstone\\outputs\\tables\\lead_time.csv', 'figure': 'D:\\Capstone\\outputs\\figures\\model_comparison.png'}

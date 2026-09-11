@@ -1,0 +1,9 @@
+2026-09-11T08:54:11+0530 INFO     bolt.__main__                configuration loaded from D:\Capstone\config\default.yaml
+2026-09-11T08:54:11+0530 INFO     bolt.__main__                universe: 10 assets (8 labelled targets), 21 features, 4 walk-forward folds
+2026-09-11T08:54:13+0530 INFO     bolt.commands                loaded cached windows from D:\Capstone\data\processed\windows.npz
+2026-09-11T08:54:13+0530 INFO     bolt.commands                training on 9946 of 12238 windows (labels resolving before 2024-11-17)
+2026-09-11T08:54:13+0530 INFO     bolt.commands                fitting lstm
+2026-09-11T08:57:29+0530 INFO     bolt.commands                  saved D:\Capstone\data\processed\models\lstm.pkl
+2026-09-11T08:57:29+0530 INFO     bolt.commands                fitting gru
+2026-09-11T09:00:05+0530 INFO     bolt.commands                  saved D:\Capstone\data\processed\models\gru.pkl
+2026-09-11T09:00:05+0530 INFO     bolt.commands                fitting xgb

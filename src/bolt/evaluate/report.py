@@ -75,11 +75,12 @@ def _calibration_split(
 def model_registry(cfg: BoltConfig) -> dict[str, Callable[[], object]]:
     """Every benchmarked model, constructed from configured parameters only."""
     p = cfg.raw["models"]
+    jobs = int(p.get("n_jobs", 1))
     return {
         "lstm":   lambda: NumpyLSTM(**p["lstm"]),
         "gru":    lambda: NumpyGRU(**p["gru"]),
-        "xgb":    lambda: XGBModel(**p["xgb"]),
-        "rf":     lambda: RandomForestModel(**p["rf"]),
+        "xgb":    lambda: XGBModel(**p["xgb"], n_jobs=jobs),
+        "rf":     lambda: RandomForestModel(**p["rf"], n_jobs=jobs),
         "logreg": lambda: LogRegModel(**p["logreg"]),
         "mlp":    lambda: MLPModel(**p["mlp"]),
         "rule":   lambda: VolatilityRule(**p["rule"]),

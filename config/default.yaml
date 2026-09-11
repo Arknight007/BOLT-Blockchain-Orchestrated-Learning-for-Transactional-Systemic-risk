@@ -127,6 +127,14 @@ imbalance:
     seed: 42
 
 models:
+  # n_jobs is 1 on purpose. With n_jobs>1 scikit-learn and XGBoost sum tree
+  # probabilities in thread-completion order, so results differ by ~1 ULP
+  # (measured: 2.2e-16) between runs. That is harmless for a metric and fatal
+  # for G5: a verifier recomputing a committed prediction must reproduce it
+  # bit-for-bit, and the payload digest is only stable because of this.
+  # Raise it for faster experimentation; results become irreproducible.
+  n_jobs: 1
+
   lstm:   {hidden: 32, epochs: 60, lr: 0.003, seed: 42, dropout: 0.1, clip_norm: 5.0, batch_size: 64}
   gru:    {hidden: 32, epochs: 60, lr: 0.003, seed: 42, dropout: 0.1, clip_norm: 5.0, batch_size: 64}
   xgb:    {n_estimators: 400, max_depth: 4, learning_rate: 0.05, seed: 42}
