@@ -126,8 +126,8 @@ change will be overwritten.
 - **Code version:** `{code_version}`
 - **Config:** `{cfg.config_path.name}`, universe `{cfg.assets_path.name}`
 - **Frozen dataset:** `{panel_path.relative_to(cfg.repo_root).as_posix()}`
-- **Content SHA-256:** `{content_sha256}` <- the reproducibility contract
-- **File SHA-256:** `{sha256}` (this specific parquet file)
+- **Content SHA-256:** `{content_sha256}` (format-independent)
+- **File SHA-256:** `{sha256}` (the parquet bytes)
 {dirty_warning}
 - **Shape:** {len(panel):,} rows x {panel.shape[1]} columns
 - **Coverage:** {report.date_min} to {report.date_max}, {report.assets} assets
@@ -174,11 +174,14 @@ bolt build  --config config/default.yaml    # regenerates this file and the parq
 
 ## Verifying you hold the same data
 
-Use the **content** hash, not the file hash. Parquet embeds writer metadata that
-differs between runs, so two rebuilds of byte-identical data produce different
-file digests - measured on this project: `f8532919...` and `925ac6c8...` for
-content that `assert_frame_equal` confirmed identical. Hashing the file would
-therefore report a mismatch to anyone who rebuilt, which is exactly backwards.
+Either digest works. The **file** hash is the direct check: parquet is
+byte-deterministic for identical data, so a rebuild of the same inputs on the
+same code reproduces the same file.
+
+The **content** hash is the more durable one. It is taken over a canonical CSV
+rendering rather than the stored bytes, so it survives a future pyarrow or
+compression change that would alter the file while leaving the data untouched.
+Prefer it if you are checking across library versions.
 
 ```bash
 python -c "
@@ -190,11 +193,9 @@ print(hashlib.sha256(p.to_csv(float_format='%.10g', lineterminator=chr(10)).enco
 # expected: {content_sha256}
 ```
 
-The file hash below is still recorded, but it answers a narrower question: did
-this exact artefact reach you intact.
-
-```
-file sha256: {sha256}
+```bash
+python -c "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('{panel_path.relative_to(cfg.repo_root).as_posix()}').read_bytes()).hexdigest())"
+# expected: {sha256}
 ```
 """
     out.write_text(body, encoding="utf-8")

@@ -248,13 +248,17 @@ private, purchased, or fabricated; the dataset regenerates from the scripts.
 pipeline — never hand-written — and records per-column provenance, per-year
 coverage, every proxy with its stated limitation, and two digests.
 
-**Verify with the *content* hash, not the file hash.** Parquet embeds writer
-metadata that varies between runs, so two rebuilds of byte-identical data produce
-different file digests (measured here: `f8532919…` and `925ac6c8…` for content
-`assert_frame_equal` confirms identical). Hashing the file would report a
-mismatch to anyone who rebuilt — exactly backwards. The content digest is taken
-over a canonical CSV rendering and is stable across rebuilds, platforms and
-pyarrow versions; the data card carries the command to recompute it.
+**Two digests, both valid.** The file hash is the direct check — parquet is
+byte-deterministic for identical data, so rebuilding the same inputs on the same
+code reproduces the same file. The content hash is taken over a canonical CSV
+rendering instead of the stored bytes, so it also survives a future pyarrow or
+compression change that would alter the file while leaving the data untouched.
+The data card carries the command for each.
+
+Getting there required fixing a real non-determinism: `eigen_centrality_30` came
+from a LAPACK eigensolver whose iteration varies between runs, so two builds of
+identical inputs differed across 6,548 cells by up to 8.9e-16 — meaningless as a
+centrality score, fatal for any hash. It is now rounded at source.
 
 **On-chain data is proxied.** No Etherscan key is configured, so four ledger-native
 metrics are documented proxies, each declaring what it stands in for *and where it

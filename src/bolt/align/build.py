@@ -47,18 +47,18 @@ CONTENT_PRECISION = 10
 
 
 def content_digest(panel: pd.DataFrame, precision: int = CONTENT_PRECISION) -> str:
-    """SHA-256 over the panel's CONTENT, independent of the container bytes.
+    """SHA-256 over the panel's CONTENT, independent of the storage format.
 
-    Parquet embeds writer metadata that changes between runs, so hashing the
-    file gives a different digest every rebuild even when the data is identical
-    - measured here: two rebuilds from the same cache produced
-    f8532919... and 925ac6c8... for byte-identical content.
+    This is a SECOND check alongside the file hash, not a replacement for it.
+    Parquet is byte-deterministic for identical data - verified here by writing
+    the same frame three times and getting one digest - so the file hash is a
+    valid reproducibility check today. The content hash guards a narrower risk:
+    a future pyarrow or compression change would alter the bytes while leaving
+    the data untouched, and the file hash would then report a mismatch that is
+    not one.
 
-    That made the file hash useless as a reproducibility check: anyone who
-    rebuilt would see a mismatch and reasonably conclude the data had changed.
-    This digest is taken over a canonical CSV rendering - sorted index, sorted
-    columns, fixed precision - so it is stable across rebuilds, platforms and
-    pyarrow versions, and a reader can recompute it with pandas alone.
+    Taken over a canonical CSV rendering (sorted index, sorted columns, fixed
+    precision) that a reader can recompute with pandas alone.
     """
     ordered = panel.sort_index()
     ordered = ordered[sorted(ordered.columns)]

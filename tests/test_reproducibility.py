@@ -152,13 +152,11 @@ def test_the_committed_digest_is_reproducible(dataset):
 
 
 def test_content_digest_is_stable_across_container_rewrites():
-    """The reproducibility contract must survive a rebuild.
+    """The content digest must survive a parquet round trip.
 
-    Parquet embeds writer metadata, so writing identical data twice yields
-    different file bytes - measured on the real panel: f8532919... and
-    925ac6c8... for content assert_frame_equal confirmed identical. Hashing the
-    FILE therefore reports a mismatch to anyone who rebuilds, which is exactly
-    backwards for a claim that says "rebuild and check the hash".
+    It is a format-independent second check beside the file hash, so that a
+    future pyarrow or compression change cannot report a mismatch that is not
+    one.
     """
     import tempfile
     from pathlib import Path
@@ -219,6 +217,37 @@ def test_content_digest_ignores_column_and_row_order():
 
     shuffled = panel[["b", "a"]].sample(frac=1.0, random_state=0)
     assert content_digest(shuffled) == content_digest(panel)
+
+
+def test_parquet_is_byte_deterministic_for_identical_data():
+    """Pin the property the file hash depends on.
+
+    Writing the same frame repeatedly must produce identical bytes. If a future
+    pyarrow breaks this, the file-hash check in DATA_CARD.md stops being valid
+    and the content hash becomes the only one worth quoting - this test is how
+    that gets noticed rather than discovered by a confused reader.
+    """
+    import hashlib
+    import tempfile
+    from pathlib import Path
+
+    rng = np.random.default_rng(5)
+    dates = pd.date_range("2021-01-01", periods=150, freq="D", tz="UTC")
+    frame = pd.DataFrame({"close": rng.normal(100, 5, 150)}, index=dates)
+    frame["asset"] = "BTC"
+    panel = frame.set_index("asset", append=True)
+    panel.index.names = ["date", "asset"]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        digests = []
+        for i in range(3):
+            path = Path(tmp) / f"p{i}.parquet"
+            panel.to_parquet(path, engine="pyarrow", compression="snappy")
+            digests.append(hashlib.sha256(path.read_bytes()).hexdigest())
+    assert len(set(digests)) == 1, (
+        "parquet is no longer byte-deterministic; the file hash in DATA_CARD.md "
+        "must stop being presented as a reproducibility check"
+    )
 
 
 def test_eigenvector_centrality_is_bit_reproducible():
