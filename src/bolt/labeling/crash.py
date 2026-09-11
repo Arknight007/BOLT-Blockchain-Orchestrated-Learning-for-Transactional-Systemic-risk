@@ -124,7 +124,7 @@ def episode_coverage(labels: pd.Series, episodes: list) -> dict[str, bool]:
         end = pd.Timestamp(episode.end, tz="UTC")
         # A warning is useful BEFORE the episode, so look back one horizon:
         # a label set on day t fires because of what happens after t.
-        window = (dates >= start - pd.Timedelta(days=45)) & (dates <= end)
+        window = (dates >= start - pd.Timedelta(45, "D")) & (dates <= end)
         block = labels[window].dropna()
         result[episode.name] = bool(len(block) and block.sum() > 0)
     return result

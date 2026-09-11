@@ -1,0 +1,29 @@
+model,episode,start,lead_time_days,warned
+lstm,May 2021 selloff,2021-05-10,,False
+lstm,Terra/LUNA,2022-05-07,,False
+lstm,FTX collapse,2022-11-06,,False
+lstm,USDC depeg,2023-03-10,,False
+gru,May 2021 selloff,2021-05-10,,False
+gru,Terra/LUNA,2022-05-07,,False
+gru,FTX collapse,2022-11-06,,False
+gru,USDC depeg,2023-03-10,,False
+xgb,May 2021 selloff,2021-05-10,,False
+xgb,Terra/LUNA,2022-05-07,,False
+xgb,FTX collapse,2022-11-06,,False
+xgb,USDC depeg,2023-03-10,,False
+rf,May 2021 selloff,2021-05-10,,False
+rf,Terra/LUNA,2022-05-07,,False
+rf,FTX collapse,2022-11-06,,False
+rf,USDC depeg,2023-03-10,,False
+logreg,May 2021 selloff,2021-05-10,,False
+logreg,Terra/LUNA,2022-05-07,,False
+logreg,FTX collapse,2022-11-06,,False
+logreg,USDC depeg,2023-03-10,,False
+mlp,May 2021 selloff,2021-05-10,,False
+mlp,Terra/LUNA,2022-05-07,,False
+mlp,FTX collapse,2022-11-06,,False
+mlp,USDC depeg,2023-03-10,,False
+rule,May 2021 selloff,2021-05-10,,False
+rule,Terra/LUNA,2022-05-07,68.0,True
+rule,FTX collapse,2022-11-06,54.0,True
+rule,USDC depeg,2023-03-10,-3.0,True

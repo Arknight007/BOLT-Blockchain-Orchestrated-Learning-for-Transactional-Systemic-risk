@@ -63,9 +63,46 @@ def test_no_command_is_an_error(capsys):
     assert exc.value.code == 2
 
 
-def test_unimplemented_command_exits_three_not_zero():
-    # Rule 12.2/12.3: an unbuilt phase must fail loudly, never return a fake success.
-    assert main(["build"]) == 3
+def test_pending_phases_exit_three_not_zero():
+    """Rule 12.2/12.3: an unbuilt phase must fail loudly, never fake success.
+
+    Every command is implemented as of Phase 5, so this exercises the error path
+    directly rather than invoking a command. Running a real command here would
+    hit the network and rewrite the frozen dataset from inside the test suite.
+    """
+    import argparse
+
+    from bolt.cli import CommandNotReady, _pending
+
+    with pytest.raises(CommandNotReady, match="Phase 7"):
+        _pending("future-thing", "Phase 7")
+
+    def explode(_args):
+        _pending("future-thing", "Phase 7")
+
+    parser = build_parser()
+    args = parser.parse_args(["build"])
+    args.func = explode
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr("bolt.cli.build_parser", lambda: _parser_returning(args))
+        assert main(["build"]) == 3
+
+
+def _parser_returning(args):
+    """A stand-in parser that yields fixed args, for exit-code testing."""
+    class _Stub:
+        def parse_args(self, _argv=None):
+            return args
+    return _Stub()
+
+
+def test_every_spec_command_is_implemented():
+    """No command may still be a placeholder at the 50% review."""
+    import bolt.commands as commands
+
+    for name in ("do_ingest", "do_build", "do_train", "do_evaluate",
+                 "do_explain", "do_predict", "do_verify"):
+        assert hasattr(commands, name), f"bolt.commands.{name} is missing"
 
 
 def test_bad_config_exits_two(tmp_path):

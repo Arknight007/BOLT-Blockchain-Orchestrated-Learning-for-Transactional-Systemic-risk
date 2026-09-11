@@ -74,7 +74,7 @@ def build_windows(
                 "window_end": dates[end],
                 # The label at window_end looks `horizon` days forward. This is
                 # the value the embargo is computed from.
-                "label_end": dates[end] + pd.Timedelta(days=horizon),
+                "label_end": dates[end] + pd.Timedelta(horizon, "D"),
             })
 
     if not tensors:

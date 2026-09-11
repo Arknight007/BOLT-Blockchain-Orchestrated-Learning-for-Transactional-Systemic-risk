@@ -109,6 +109,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_verify.add_argument("--id", dest="prediction_id", required=True, help="the prediction id")
     p_verify.add_argument("--rpc-url", default=None, help="override the RPC endpoint")
     p_verify.add_argument("--contract", default=None, help="override the registry contract address")
+    p_verify.add_argument("--offline", action="store_true",
+                          help="recompute the digest without reading the chain")
     p_verify.set_defaults(func=cmd_verify)
 
     return parser
@@ -133,6 +135,7 @@ def _load(args: argparse.Namespace):
 
 
 def _pending(command: str, phase: str, gap: str | None = None) -> None:
+    """Raised by any command whose implementing phase has not landed."""
     detail = f" ({gap})" if gap else ""
     raise CommandNotReady(
         f"`bolt {command}`{detail} lands in {phase}. See BOLT_SPEC.md Section 11 for "
@@ -141,48 +144,60 @@ def _pending(command: str, phase: str, gap: str | None = None) -> None:
 
 
 def cmd_ingest(args: argparse.Namespace) -> int:
-    _load(args)
-    _pending("ingest", "Phase 1")
-    return 0
+    from bolt.commands import do_ingest
+
+    return do_ingest(_load(args), refresh=args.refresh)
 
 
 def cmd_build(args: argparse.Namespace) -> int:
-    _load(args)
-    _pending("build", "Phase 2", "G1, G2")
-    return 0
+    from bolt.commands import do_build
+
+    return do_build(_load(args), skip_windows=args.skip_windows)
 
 
 def cmd_train(args: argparse.Namespace) -> int:
-    _load(args)
-    _pending("train", "Phase 3", "G3")
-    return 0
+    from bolt.commands import do_train
+
+    return do_train(_load(args), model=args.model)
 
 
 def cmd_evaluate(args: argparse.Namespace) -> int:
-    _load(args)
+    from bolt.commands import do_evaluate
+
     if not args.all and args.model is None:
         raise SystemExit("bolt evaluate: pass --all or --model MODEL")
-    _pending("evaluate", "Phase 3", "G3")
-    return 0
+    models = None if args.all else [args.model]
+    return do_evaluate(_load(args), models, report=args.report)
 
 
 def cmd_explain(args: argparse.Namespace) -> int:
-    _load(args)
-    _pending("explain", "Phase 4", "G4")
-    return 0
+    from bolt.commands import do_explain
+
+    return do_explain(
+        _load(args), model=args.model,
+        consistency=args.consistency or not args.analogue,
+        analogue=args.analogue,
+    )
 
 
 def cmd_predict(args: argparse.Namespace) -> int:
-    _load(args)
-    _pending("predict", "Phase 5", "G5")
-    return 0
+    from bolt.commands import do_predict
+
+    return do_predict(
+        _load(args), asset=args.asset, as_of=args.as_of,
+        model=args.model, commit=args.commit,
+    )
 
 
 def cmd_verify(args: argparse.Namespace) -> int:
     # Deliberately does NOT load the pipeline configuration: verification must
     # stand alone (BOLT_SPEC.md Section 9).
-    _pending("verify", "Phase 5", "G5")
-    return 0
+    from bolt.commands import do_verify
+
+    return do_verify(
+        str(args.payload), args.prediction_id, args.rpc_url, args.contract,
+        offline=args.offline,
+    )
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -214,6 +229,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     except CommandNotReady as exc:
         log.error("%s", exc)
         return 3
+    except FileNotFoundError as exc:
+        log.error("%s", exc)
+        return 5
     except KeyboardInterrupt:
         log.warning("interrupted")
         return 130

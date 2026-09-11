@@ -1,13 +1,13 @@
 # DATA CARD
 
-Generated automatically by `bolt build` on 2026-09-11 02:42 UTC.
+Generated automatically by `bolt build` on 2026-09-11 03:18 UTC.
 Do not edit by hand: this file is regenerated on every build and any manual
 change will be overwritten.
 
-- **Code version:** `219cd932b2b021e5a879626f07bd930db1982876-dirty`
+- **Code version:** `f8c3ec511b20344a6ac5bd00a95a8c7d771a71d1-dirty`
 - **Config:** `default.yaml`, universe `assets.yaml`
 - **Frozen dataset:** `data/processed/panel.parquet`
-- **SHA-256:** `83413edf012c03e8d957ee48c120739e4605ba24d41cba11aa741425d5fc0578`
+- **SHA-256:** `f8532919fc0529d4d64aec855222259018f17f32c8722957a4145f448bc4eab1`
 - **Shape:** 16,854 rows x 25 columns
 - **Coverage:** 2020-01-01 to 2025-12-31, 10 assets
 - **Label:** 20% drawdown within 14 days,
@@ -142,5 +142,5 @@ Verify you hold the same dataset that produced the reported results:
 
 ```bash
 python -c "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('data/processed/panel.parquet').read_bytes()).hexdigest())"
-# expected: 83413edf012c03e8d957ee48c120739e4605ba24d41cba11aa741425d5fc0578
+# expected: f8532919fc0529d4d64aec855222259018f17f32c8722957a4145f448bc4eab1
 ```
