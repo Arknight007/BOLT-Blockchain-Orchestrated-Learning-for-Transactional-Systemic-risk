@@ -113,9 +113,14 @@ def predict_all(
     models: dict,
     scaler,
     commit: bool = False,
+    analogue_source=None,
 ) -> tuple[list[dict], list[str]]:
-    """Run the agent chain for every target asset and append each prediction."""
-    pipeline = ChainGuardPipeline(cfg, models, scaler)
+    """Run the agent chain for every target asset and append each prediction.
+
+    ``analogue_source`` activates the Skeptic's precedent check; without it that
+    challenge never fires.
+    """
+    pipeline = ChainGuardPipeline(cfg, models, scaler, analogue_source=analogue_source)
     features = list(cfg.feature_columns)
     records: list[dict] = []
     errors: list[str] = []
@@ -220,17 +225,35 @@ def run_cycle(
         log.warning("%s -- the quantitative agent will report UNAVAILABLE", exc)
         models, scaler = {}, None
 
-    predictions, errors = predict_all(cfg, store, panel, as_of, models, scaler, commit)
+    # Windows serve two purposes below: the Skeptic's precedent check and the
+    # drift comparison. Load once.
+    windows = None
+    try:
+        windows = load_windows(cfg)
+    except Exception as exc:  # noqa: BLE001
+        result.errors.append(f"windows: {type(exc).__name__}: {exc}")
+        log.warning("windows unavailable (%s); precedent check and drift disabled", exc)
+
+    analogue_source = None
+    if windows is not None:
+        X, _, meta = windows
+        analogue_source = (scaler.transform(X) if scaler is not None else X,
+                           meta, panel["close"])
+
+    predictions, errors = predict_all(
+        cfg, store, panel, as_of, models, scaler, commit, analogue_source
+    )
     result.predictions = predictions
     result.errors.extend(errors)
 
     # 3. Monitor.
-    try:
-        X, _, meta = load_windows(cfg)
-        result.health = check_health(cfg, X, meta, as_of)
-    except Exception as exc:  # noqa: BLE001
-        result.errors.append(f"health: {type(exc).__name__}: {exc}")
-        log.exception("health step failed")
+    if windows is not None:
+        try:
+            X, _, meta = windows
+            result.health = check_health(cfg, X, meta, as_of)
+        except Exception as exc:  # noqa: BLE001
+            result.errors.append(f"health: {type(exc).__name__}: {exc}")
+            log.exception("health step failed")
 
     store.record_run(result.summary())
     return result

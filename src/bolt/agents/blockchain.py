@@ -77,6 +77,25 @@ class BlockchainAuditAgent:
             }
             for item in decision.top_evidence(5)
         ]
+        # The models' own P(crash), NOT the governed risk score rescaled. These
+        # are different quantities and can disagree sharply: the quantitative
+        # agent may read 0.98 while the decision lands at 65/100 after the
+        # orchestrator weights it and the skeptic discounts it. Publishing the
+        # rescaled score under the name "probability" would invite a reader to
+        # treat a governance output as a calibrated model output.
+        quant = next((r for r in reports if r.agent == "Quantitative Agent"), None)
+        probabilities = (quant.extra.get("probabilities") or {}) if quant else {}
+        if probabilities:
+            model_probability = round(
+                sum(probabilities.values()) / len(probabilities), 6
+            )
+            probability_source = (
+                "mean of " + ", ".join(sorted(probabilities)) + " P(crash)"
+            )
+        else:
+            model_probability = None
+            probability_source = "unavailable: no quantitative model scored this window"
+
         skeptic = next((r for r in reports if r.agent == "Skeptic Agent"), None)
         counter = (
             [{"name": e.name, "detail": e.detail, "weight": round(float(e.weight), 6)}
@@ -90,7 +109,8 @@ class BlockchainAuditAgent:
             as_of_date=as_of,
             horizon_days=int(self.cfg.horizon_days),
             risk_score=round(float(decision.score), 6),
-            probability=round(float(decision.score) / 100.0, 6),
+            probability=model_probability,
+            probability_source=probability_source,
             severity_band=decision.risk.value,
             top_drivers=drivers,
             model_name=model_name,

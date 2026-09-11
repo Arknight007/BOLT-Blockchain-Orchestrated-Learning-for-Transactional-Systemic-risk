@@ -295,8 +295,19 @@ def do_predict(cfg: BoltConfig, asset: str, as_of: str, model: str = "lstm",
         log.warning("%s -- the quantitative agent will report UNAVAILABLE", exc)
         models, scaler = {}, None
 
+    # Supplying the analogue source is what activates the Skeptic's precedent
+    # check. Without it that challenge never fires and the explanation never
+    # cites a precedent - both were silently dead here until it was spotted.
+    try:
+        X, _, meta = load_windows(cfg)
+        analogue_source = (scaler.transform(X) if scaler is not None else X,
+                           meta, panel["close"])
+    except Exception as exc:  # noqa: BLE001
+        log.warning("analogues unavailable (%s); the precedent check will not fire", exc)
+        analogue_source = None
+
     context = build_context(cfg, panel, asset, pd.Timestamp(as_of), features)
-    pipeline = ChainGuardPipeline(cfg, models, scaler)
+    pipeline = ChainGuardPipeline(cfg, models, scaler, analogue_source=analogue_source)
     result = pipeline.run(context, commit=commit)
 
     print()

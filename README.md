@@ -279,7 +279,7 @@ both. The On-Chain agent repeats the caveat in every report and marks itself
 | 2 | Labels + sensitivity table, 4 feature families, 5 leakage guards | ✅ |
 | 3 | NumPy LSTM/GRU + gradient checks, 7-model bench, embargoed walk-forward | ✅ |
 | 4 | SHAP + gradient attribution, episode consistency (G4) | ✅ |
-| 5 | `PredictionRegistry.sol`, payload hashing, commit + verify (G5) | ✅ contract & payload tested; testnet deploy pending |
+| 5 | `PredictionRegistry.sol`, payload hashing, commit + verify (G5) | ⚠️ **built and tested; NOT deployed** — no contract address, zero on-chain commitments |
 | 6 | Demo notebook, one-command reproduction | ✅ |
 | — | Automation loop (`bolt monitor`) + ChainGuard terminal (`bolt serve`) | ✅ |
 | 7 | LLM narrative backend, news event identification | ⬜ not started |
@@ -287,15 +287,18 @@ both. The On-Chain agent repeats the caveat in every report and marks itself
 ## Tests
 
 ```
-tests/test_leakage.py        20   the five guards, each tested against data that would leak
-tests/test_lstm_gradcheck.py 15   analytic vs numerical gradients, both models
-tests/test_chain.py          19   payload determinism, tamper detection, verifier independence
-tests/test_contract.py       11   compiled EVM: the overwrite revert G5 rests on
-tests/test_agents.py         23   abstention, skeptic challenges, deterministic serialisation
-tests/test_automation.py     13   append-only ledger, resolve-before-predict ordering
+tests/test_scaffold.py      111   structure, clone survival, secret hygiene, module docs
+tests/test_agents.py         31   abstention, skeptic challenges, deterministic serialisation
+tests/test_chain.py          23   payload determinism, tamper detection, verifier independence
 tests/test_config.py         21   config invariants that would silently corrupt results
-tests/test_cli.py            16   command surface
-tests/test_scaffold.py       ...  structure, clone survival, secret hygiene
+tests/test_leakage.py        20   the five guards, each tested against data that would leak
+tests/test_cli.py            18   command surface
+tests/test_lstm_gradcheck.py 15   analytic vs numerical gradients, both models
+tests/test_automation.py     13   append-only ledger, resolve-before-predict ordering
+tests/test_reproducibility.py 12  identical seed produces byte-identical predictions
+tests/test_contract.py       11   compiled EVM: the overwrite revert G5 rests on
+                            ---
+                            275   verify with: pytest -q
 ```
 
 ## License

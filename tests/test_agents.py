@@ -454,3 +454,45 @@ def test_genuinely_blind_agents_are_penalised():
     ]
     skeptic = SkepticAgent().analyse(context, preliminary, blind)
     assert "data_quality" in {e.name for e in skeptic.evidence}
+
+
+def test_every_entry_point_can_activate_the_precedent_check():
+    """The Skeptic's seventh challenge must not be dead code.
+
+    It fires only when historical analogues reach the chain. `predict` and
+    `monitor` both called pipeline.run() without them, so the check - and the
+    precedent line in the explanation - silently never fired outside the web
+    console. The pipeline now retrieves analogues itself when given a source,
+    and every entry point supplies one.
+    """
+    import inspect
+
+    from bolt.agents.pipeline import ChainGuardPipeline
+
+    assert hasattr(ChainGuardPipeline, "retrieve_analogues")
+
+    run_source = inspect.getsource(ChainGuardPipeline.run)
+    assert "retrieve_analogues" in run_source, (
+        "run() must fall back to retrieving analogues when none are passed"
+    )
+
+    import bolt.automation as automation
+    import bolt.commands as commands
+
+    assert "analogue_source" in inspect.getsource(commands.do_predict)
+    assert "analogue_source" in inspect.getsource(automation.run_cycle)
+
+
+def test_skeptic_challenges_a_weak_precedent():
+    context = _context()
+    preliminary = _report("Risk Orchestrator", 80.0, confidence=0.8)
+    weak = [{"date": "2022-07-30", "similarity": 0.41,
+             "what_happened_next_30d": {"available": False}}]
+
+    challenged = SkepticAgent().analyse(context, preliminary, [], weak)
+    assert "weak_analogue" in {e.name for e in challenged.evidence}
+
+    strong = [{"date": "2022-07-30", "similarity": 0.93,
+               "what_happened_next_30d": {"available": False}}]
+    unchallenged = SkepticAgent().analyse(context, preliminary, [], strong)
+    assert "weak_analogue" not in {e.name for e in unchallenged.evidence}

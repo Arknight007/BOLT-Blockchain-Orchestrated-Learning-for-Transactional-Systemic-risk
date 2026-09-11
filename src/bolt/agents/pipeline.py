@@ -120,8 +120,16 @@ class ChainGuardPipeline:
     """The full multi-agent chain."""
 
     def __init__(self, cfg, models: dict | None = None, scaler=None,
-                 narrative_backend=None) -> None:
+                 narrative_backend=None, analogue_source=None) -> None:
+        """
+        Args:
+            analogue_source: optional ``(X, meta, prices)`` for historical
+                analogue retrieval. Supplying it is what lets the Skeptic run
+                its precedent check; without it that check silently never fires,
+                which is how it came to be dead in two of three entry points.
+        """
         self.cfg = cfg
+        self.analogue_source = analogue_source
         self.market = MarketIntelligenceAgent()
         self.onchain = OnChainIntelligenceAgent()
         self.news = NewsEventAgent()
@@ -137,6 +145,41 @@ class ChainGuardPipeline:
         self.explanation = ExplanationAgent(narrative_backend)
         self.blockchain = BlockchainAuditAgent(cfg)
 
+    def retrieve_analogues(self, context: AgentContext) -> list[dict]:
+        """Nearest historical regimes, for the Skeptic's precedent check.
+
+        Returns an empty list when no source was supplied, and the Skeptic then
+        simply finds nothing to challenge on that axis - it must never guess.
+        """
+        if self.analogue_source is None:
+            return []
+        try:
+            from bolt.explain.analogue import nearest_historical_analogue
+            from bolt.windows import flatten_windows
+
+            X, meta, prices = self.analogue_source
+            mask = (meta["asset"] == context.asset).to_numpy()
+            if mask.sum() < 10:
+                return []
+
+            flat = flatten_windows(X[mask])
+            sub_meta = meta[mask].reset_index(drop=True)
+            ends = pd.to_datetime(sub_meta["window_end"], utc=True)
+            eligible = np.flatnonzero((ends <= context.as_of).to_numpy())
+            if eligible.size == 0:
+                return []
+
+            settings = self.cfg.section("explain")["analogue"]
+            return nearest_historical_analogue(
+                flat[int(eligible[-1])], flat, sub_meta, prices=prices,
+                k=int(settings["k"]), exclude_days=int(settings["exclude_days"]),
+                metric=str(settings["metric"]), as_of=context.as_of,
+                outcome_window_days=int(settings["outcome_window_days"]),
+            )
+        except Exception as exc:  # noqa: BLE001 - a lookup failure must not kill the run
+            log.warning("analogue retrieval failed for %s: %s", context.asset, exc)
+            return []
+
     def run(
         self,
         context: AgentContext,
@@ -145,6 +188,9 @@ class ChainGuardPipeline:
         attribution: pd.DataFrame | None = None,
     ) -> PipelineResult:
         """Run every agent in order and return the complete result."""
+        if analogues is None:
+            analogues = self.retrieve_analogues(context)
+
         reports = [
             self.market.analyse(context),
             self.onchain.analyse(context),

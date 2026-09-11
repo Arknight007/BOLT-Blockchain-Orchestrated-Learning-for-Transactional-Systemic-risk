@@ -228,3 +228,127 @@ def test_verify_module_does_not_import_the_pipeline():
         assert banned not in source, (
             f"verify.py must not import the pipeline it verifies (found {banned!r})"
         )
+
+
+# ---------------------------------------------------------------------------
+# The digest must describe the PREDICTION, not the moment it was generated
+# ---------------------------------------------------------------------------
+
+def test_regenerating_the_same_prediction_gives_the_same_digest():
+    """Re-running identical inputs must reproduce the fingerprint exactly.
+
+    A wall-clock ``created_at`` inside the hashed payload used to break this:
+    the digest became a function of WHEN the pipeline ran, so verification only
+    ever worked against the one saved file. The authoritative time is the
+    chain's block timestamp, which cannot be backdated; generation time belongs
+    beside the payload, not inside it.
+    """
+    first = Prediction(
+        prediction_id="0xabc", asset="BTC", as_of_date="2022-11-05", horizon_days=14,
+        risk_score=78.25, probability=0.91, severity_band="HIGH",
+        top_drivers=[{"feature": "realized_vol_7", "contribution": 0.3, "direction": 1}],
+        model_name="ensemble", model_version="abc1234", feature_hash="0xdead",
+        code_version="abc1234", created_at="2026-01-01T00:00:00+00:00",
+    )
+    # Same prediction, generated at a different moment.
+    second = Prediction(
+        prediction_id="0xabc", asset="BTC", as_of_date="2022-11-05", horizon_days=14,
+        risk_score=78.25, probability=0.91, severity_band="HIGH",
+        top_drivers=[{"feature": "realized_vol_7", "contribution": 0.3, "direction": 1}],
+        model_name="ensemble", model_version="abc1234", feature_hash="0xdead",
+        code_version="abc1234", created_at="2026-07-14T09:31:22+00:00",
+    )
+    assert first.digest_hex() == second.digest_hex(), (
+        "generation time must not influence the fingerprint"
+    )
+
+
+def test_generation_time_is_not_inside_the_hashed_payload():
+    prediction = Prediction(
+        prediction_id="0xabc", asset="BTC", as_of_date="2022-11-05", horizon_days=14,
+        risk_score=78.25, probability=0.91, severity_band="HIGH", top_drivers=[],
+        model_name="ensemble", model_version="abc1234", feature_hash="0xdead",
+        code_version="abc1234", created_at="2026-01-01T00:00:00+00:00",
+    )
+    assert "created_at" not in prediction.to_dict()
+    assert b"created_at" not in prediction.canonical()
+
+
+def test_probability_is_a_model_output_not_a_rescaled_risk_score():
+    """`probability` must be P(crash) from the models, not risk_score / 100.
+
+    The two are different quantities and can disagree sharply: the quantitative
+    agent may read 0.98 while the governed decision lands at 65/100 after the
+    orchestrator weights it and the skeptic discounts it. Publishing the
+    rescaled score under the name "probability" would invite a reader to treat
+    a governance output as a calibrated model output.
+    """
+    from bolt.agents.base import AgentReport, AgentStatus, RiskLevel
+    from bolt.agents.blockchain import BlockchainAuditAgent
+    from bolt.config import load_config
+
+    cfg = load_config("config/default.yaml")
+
+    class _Context:
+        asset = "BTC"
+        features = {"realized_vol_7": 0.4}
+
+        class _AsOf:
+            @staticmethod
+            def date():
+                import datetime
+                return datetime.date(2022, 11, 5)
+
+        as_of = _AsOf()
+
+    decision = AgentReport(
+        agent="Decision Agent", risk=RiskLevel.HIGH, score=65.0, confidence=0.5,
+        status=AgentStatus.OK,
+    )
+    quant = AgentReport(
+        agent="Quantitative Agent", risk=RiskLevel.CRITICAL, score=98.0,
+        confidence=0.96, status=AgentStatus.OK,
+        extra={"probabilities": {"lstm": 1.0, "xgb": 0.96}},
+    )
+
+    prediction = BlockchainAuditAgent(cfg).build_prediction(
+        _Context(), decision, [quant]
+    )
+    assert prediction.probability == pytest.approx(0.98)
+    assert prediction.probability != pytest.approx(decision.score / 100.0)
+    assert "lstm" in prediction.probability_source
+
+
+def test_probability_is_null_when_no_model_scored_the_window():
+    """Absence must read as null, never as a fabricated 0.0 or a rescaled score."""
+    from bolt.agents.base import AgentReport, AgentStatus, RiskLevel
+    from bolt.agents.blockchain import BlockchainAuditAgent
+    from bolt.config import load_config
+
+    cfg = load_config("config/default.yaml")
+
+    class _Context:
+        asset = "BTC"
+        features = {"realized_vol_7": 0.4}
+
+        class _AsOf:
+            @staticmethod
+            def date():
+                import datetime
+                return datetime.date(2022, 11, 5)
+
+        as_of = _AsOf()
+
+    decision = AgentReport(
+        agent="Decision Agent", risk=RiskLevel.LOW, score=20.0, confidence=0.5,
+        status=AgentStatus.OK,
+    )
+    unavailable = AgentReport(
+        agent="Quantitative Agent", risk=RiskLevel.INSUFFICIENT_EVIDENCE,
+        score=float("nan"), confidence=0.0, status=AgentStatus.UNAVAILABLE,
+    )
+    prediction = BlockchainAuditAgent(cfg).build_prediction(
+        _Context(), decision, [unavailable]
+    )
+    assert prediction.probability is None
+    assert "unavailable" in prediction.probability_source

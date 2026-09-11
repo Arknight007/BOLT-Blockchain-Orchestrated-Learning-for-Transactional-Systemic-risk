@@ -130,6 +130,9 @@ class Prediction:
     agent_reports: list[dict] = field(default_factory=list)
     counter_evidence: list[dict] = field(default_factory=list)
     expected_severity: dict = field(default_factory=dict)
+    probability_source: str = "unavailable"
+    #: When the payload was generated. Recorded ALONGSIDE the payload, never
+    #: inside it - see to_dict().
     created_at: str = ""
 
     def to_dict(self) -> dict:
@@ -146,8 +149,15 @@ class Prediction:
             "model_version": self.model_version,
             "feature_hash": self.feature_hash,
             "code_version": self.code_version,
-            "created_at": self.created_at or datetime.now(timezone.utc).isoformat(),
+            "probability_source": self.probability_source,
         }
+        # `created_at` is deliberately NOT hashed. Including a wall-clock stamp
+        # made the digest a function of WHEN the pipeline ran rather than of the
+        # prediction itself, so re-running identical inputs produced a different
+        # fingerprint and the reproducibility claim held only against the saved
+        # file. The authoritative time is the chain's own block timestamp, which
+        # cannot be backdated; the local generation time lives in the ledger
+        # record next to the payload, outside the hash.
         # The agent evidence and the skeptic's counter-evidence are committed
         # too: the record should show what the system knew might be wrong at the
         # moment it committed, not just what it predicted.

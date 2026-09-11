@@ -118,7 +118,7 @@ Repository: https://github.com/Arknight007/BOLT-Blockchain-Orchestrated-Learning
 - Attribution stability index measured zero point six zero one
 - Contagion features supply forty four percent of total attribution
 - Out of sample the system issued zero crash warnings
-- Two hundred sixty nine tests pass with zero skipped
+- Two hundred seventy five tests pass with zero skipped
 
 ### Model comparison (walk-forward, embargoed, four folds)
 
@@ -159,6 +159,13 @@ Random-classifier baseline PR-AUC = 0.083.
 - Weeks ten and eleven: testnet deployment, live commitment runs
 - Weeks twelve and thirteen: sentiment events, narrative explanation agent
 - Weeks fourteen onward: paper writing, final report, and viva
+
+> **Phase 5 is not finished.** The contract, canonical payload hashing and the
+> independent verifier are implemented and tested, but nothing has been committed
+> to Polygon Amoy yet: there is no deployed contract address and the ledger shows
+> zero on-chain commitments. The spec's own finish line for Phase 5 is a live
+> commitment plus an independent verification returning a block timestamp. Say
+> "built and tested, deployment pending", never "complete".
 
 ### Gantt chart
 
@@ -212,10 +219,10 @@ Report/Viva                                                                     
 
 ## Slide 8 — Status Summary (optional closing slide)
 
-- Phases zero through five are complete and fully tested
+- Phases zero through four complete; phase five awaits deployment
 - Five leakage guards enforced as assertions with twenty tests
 - Gradient checks verify both from scratch sequence model implementations
-- Smart contract overwrite revert tested against compiled virtual machine
+- Contract overwrite revert tested against a compiled virtual machine
 - Nine of eleven agents implemented, two remain honestly partial
 - Web terminal streams the agent chain over real data
 - Remaining work: testnet deployment and the natural language layers
