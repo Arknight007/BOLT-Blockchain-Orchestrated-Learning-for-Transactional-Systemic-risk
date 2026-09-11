@@ -287,8 +287,10 @@ def do_predict(cfg: BoltConfig, asset: str, as_of: str, model: str = "lstm",
     panel = load_panel(cfg, targets_only=False)
     features = list(cfg.feature_columns)
 
+    quant_models = list(cfg.section("agents")["quant_models"])
     try:
-        models, scaler = load_models(cfg)
+        models, scaler = load_models(cfg, quant_models)
+        log.info("quantitative agent using: %s", sorted(models))
     except FileNotFoundError as exc:
         log.warning("%s -- the quantitative agent will report UNAVAILABLE", exc)
         models, scaler = {}, None

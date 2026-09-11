@@ -126,7 +126,12 @@ class ChainGuardPipeline:
         self.onchain = OnChainIntelligenceAgent()
         self.news = NewsEventAgent()
         self.quant = QuantitativeAgent(models or {}, scaler)
-        self.orchestrator = RiskOrchestratorAgent()
+        weights = None
+        try:
+            weights = dict(cfg.section("agents")["weights"])
+        except Exception:  # config predates the agents section
+            pass
+        self.orchestrator = RiskOrchestratorAgent(weights)
         self.skeptic = SkepticAgent()
         self.decision = DecisionAgent()
         self.explanation = ExplanationAgent(narrative_backend)

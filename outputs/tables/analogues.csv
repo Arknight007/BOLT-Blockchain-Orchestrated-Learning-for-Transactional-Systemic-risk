@@ -1,0 +1,4 @@
+date,asset,similarity,what_happened_next_30d
+2025-04-01,BTC,0.5720760064646632,"{'available': True, 'max_drawdown': 0.10375871582278376, 'return': 0.13306471215855084, 'days_observed': 31}"
+2025-04-02,BTC,0.5681516400373515,"{'available': True, 'max_drawdown': 0.07506239071097351, 'return': 0.1741577329761191, 'days_observed': 31}"
+2025-03-26,BTC,0.5632633405145469,"{'available': True, 'max_drawdown': 0.12181395818185814, 'return': 0.08893779563192232, 'days_observed': 31}"

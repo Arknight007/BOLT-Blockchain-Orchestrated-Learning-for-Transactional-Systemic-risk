@@ -69,10 +69,24 @@ class RiskOrchestratorAgent:
         weights = weights / weights.sum()
         weighted = float(np.sum(scores * weights))
 
-        # Consensus: 1.0 when every agent says the same thing, falling toward 0
-        # as they diverge. A 50-point spread across agents halves the certainty.
+        # Consensus, measured as CONFIDENCE-WEIGHTED dispersion around the
+        # weighted mean rather than as the raw min-max range.
+        #
+        # The principle, stated before looking at any result: a dissent should
+        # count against the conclusion in proportion to how confident the
+        # dissenter is. A tentative disagreement from an agent operating at 43%
+        # confidence is weaker evidence against than a firm one at 96%. Raw
+        # min-max treats them identically, so a single hedged outlier could
+        # collapse the consensus of everyone else.
         spread = float(scores.max() - scores.min())
-        consensus = float(np.clip(1.0 - spread / 100.0, 0.0, 1.0))
+        deviation = float(np.sqrt(np.sum(weights * (scores - weighted) ** 2)))
+        # Map dispersion onto [0.5, 1.0]: total disagreement HALVES confidence
+        # rather than destroying it, because the weighted score still carries
+        # information even when the agents differ. Multiplying a dispersion
+        # factor by the mean confidence collapsed both together and made the
+        # system abstain on essentially every prediction.
+        consensus = float(np.clip(1.0 - deviation / 50.0, 0.0, 1.0))
+        consensus_factor = 0.5 + 0.5 * consensus
 
         evidence = [
             Evidence(
@@ -94,12 +108,16 @@ class RiskOrchestratorAgent:
             agent=self.name,
             risk=RiskLevel.from_score(weighted, _bands(context)),
             score=weighted,
-            confidence=float(consensus * np.mean([r.confidence for r in usable])),
+            # Confidence-weighted mean, scaled by how much the agents concur.
+            confidence=float(
+                consensus_factor * np.sum(weights * np.array([r.confidence for r in usable]))
+            ),
             status=AgentStatus.OK if len(usable) >= 3 else AgentStatus.DEGRADED,
             evidence=tuple(evidence),
             notes=tuple(notes),
             extra={
                 "consensus": round(consensus, 6),
+                "weighted_dispersion": round(deviation, 6),
                 "spread": round(spread, 6),
                 "agents_used": len(usable),
                 "agents_total": len(reports),

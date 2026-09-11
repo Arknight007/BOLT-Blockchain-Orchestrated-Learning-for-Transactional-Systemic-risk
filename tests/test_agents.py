@@ -343,3 +343,114 @@ def test_health_agent_reports_healthy_when_nothing_moved():
     drift = [DriftReading(f"f{i}", 0.01, "stable") for i in range(5)]
     report = HealthAgent().analyse(drift=drift)
     assert "Healthy" in " ".join(report.notes)
+
+
+# ---------------------------------------------------------------------------
+# Calibration of the aggregate chain
+#
+# The orchestrator's consensus formulation and the skeptic's penalty both move
+# the final decision, so they need behaviour locked down. Without these, a later
+# "improvement" to either could quietly turn the system into one that always
+# warns or never does, and every other test would still pass.
+# ---------------------------------------------------------------------------
+
+def _chain(agent_scores: dict[str, float], confidences: dict[str, float] | None = None):
+    """Run orchestrator -> skeptic -> decision over synthetic agent reports."""
+    confidences = confidences or {}
+    context = _context(stressed=False)
+    reports = [
+        _report(agent, score, confidences.get(agent, 0.8))
+        for agent, score in agent_scores.items()
+    ]
+    preliminary = RiskOrchestratorAgent().analyse(context, reports)
+    skeptic = SkepticAgent().analyse(context, preliminary, reports)
+    return DecisionAgent().analyse(context, preliminary, skeptic, reports), preliminary
+
+
+def test_unanimous_high_evidence_produces_a_warning():
+    decided, _ = _chain({
+        "Quantitative Agent": 90.0,
+        "Market Intelligence Agent": 85.0,
+        "On-Chain Intelligence Agent": 88.0,
+        "News & Sentiment Agent": 80.0,
+    })
+    assert decided.risk.rank >= RiskLevel.HIGH.rank
+    assert decided.extra["decision"] == "ALERT"
+
+
+def test_unanimous_calm_evidence_produces_no_warning():
+    decided, _ = _chain({
+        "Quantitative Agent": 10.0,
+        "Market Intelligence Agent": 12.0,
+        "On-Chain Intelligence Agent": 8.0,
+        "News & Sentiment Agent": 15.0,
+    })
+    assert decided.risk is RiskLevel.LOW
+    assert decided.extra["decision"] == "NO_ALERT"
+
+
+def test_a_confident_model_can_still_warn_over_a_hedged_dissent():
+    """A tentative dissent must not veto a confident, corroborated warning.
+
+    This is the FTX-eve case that exposed the original double-counting bug: the
+    models were at 96-100%, one weakly-held agent disagreed, and the system
+    abstained on a warning it had genuinely made.
+    """
+    decided, preliminary = _chain(
+        {
+            "Quantitative Agent": 98.0,
+            "On-Chain Intelligence Agent": 53.0,
+            "News & Sentiment Agent": 72.0,
+            "Market Intelligence Agent": 31.0,
+        },
+        confidences={
+            "Quantitative Agent": 0.96,
+            "On-Chain Intelligence Agent": 0.75,
+            "News & Sentiment Agent": 0.55,
+            "Market Intelligence Agent": 0.43,   # the hedged dissent
+        },
+    )
+    assert preliminary.confidence > 0.25, "a hedged dissent must not collapse confidence"
+    assert decided.risk.rank >= RiskLevel.HIGH.rank
+
+
+def test_a_confident_dissent_counts_more_than_a_hedged_one():
+    """The stated principle: dissent weighs in proportion to the dissenter's confidence."""
+    scores = {
+        "Quantitative Agent": 95.0,
+        "Market Intelligence Agent": 10.0,
+        "On-Chain Intelligence Agent": 60.0,
+    }
+    _, hedged = _chain(scores, {"Market Intelligence Agent": 0.20})
+    _, firm = _chain(scores, {"Market Intelligence Agent": 0.99})
+    assert firm.confidence < hedged.confidence or firm.score < hedged.score, (
+        "a firmly-held dissent must cost more than a tentative one"
+    )
+
+
+def test_structural_degradation_is_not_penalised_twice():
+    """DEGRADED agents already discount their own confidence; the skeptic must not re-charge."""
+    context = _context()
+    preliminary = _report("Risk Orchestrator", 75.0, confidence=0.6)
+    degraded = [
+        _report("On-Chain Intelligence Agent", 70.0, 0.75, AgentStatus.DEGRADED),
+        _report("News & Sentiment Agent", 72.0, 0.55, AgentStatus.DEGRADED),
+        _report("Quantitative Agent", 80.0, 0.9, AgentStatus.DEGRADED),
+    ]
+    skeptic = SkepticAgent().analyse(context, preliminary, degraded)
+    names = {e.name for e in skeptic.evidence}
+    assert "data_quality" not in names, (
+        "permanent build limitations must not be charged again as per-prediction doubt"
+    )
+
+
+def test_genuinely_blind_agents_are_penalised():
+    """The other half: an agent that could see NOTHING today is real counter-evidence."""
+    context = _context()
+    preliminary = _report("Risk Orchestrator", 75.0, confidence=0.6)
+    blind = [
+        _report("On-Chain Intelligence Agent", 0.0, 0.0, AgentStatus.UNAVAILABLE),
+        _report("News & Sentiment Agent", 0.0, 0.0, AgentStatus.UNAVAILABLE),
+    ]
+    skeptic = SkepticAgent().analyse(context, preliminary, blind)
+    assert "data_quality" in {e.name for e in skeptic.evidence}

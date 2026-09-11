@@ -133,19 +133,36 @@ class SkepticAgent:
         return None
 
     def _check_data_quality(self, context, preliminary, reports) -> Evidence | None:
-        """Proxy-derived and degraded inputs weaken any conclusion built on them."""
-        degraded = [r.agent for r in reports if r.status is AgentStatus.DEGRADED]
+        """Data MISSING for this prediction weakens the conclusion built on it.
+
+        Only ``UNAVAILABLE`` counts. ``DEGRADED`` is deliberately excluded, and
+        the distinction matters:
+
+        * STRUCTURAL degradation is a known limitation of this build, constant
+          across every prediction - the On-Chain agent runs on documented
+          proxies, the News agent has no event-identification layer. Those
+          agents ALREADY discount their own confidence at source (News caps at
+          0.55, On-Chain multiplies by 0.75), so penalising them again here
+          double-counts the same weakness.
+        * SITUATIONAL absence is specific to this prediction: an agent that
+          could see nothing at all today.
+
+        Double-counting was not theoretical. Measured on 2022-11-05, with the
+        LSTM at 100% and XGBoost at 96% on the eve of the FTX collapse, the
+        permanent-degradation penalty pushed confidence to 16% and the system
+        abstained on a warning it had genuinely made. A skeptic that vetoes
+        every prediction is not a skeptic, it is an off switch.
+        """
         unavailable = [r.agent for r in reports if r.status is AgentStatus.UNAVAILABLE]
-        if not degraded and not unavailable:
+        if not unavailable:
             return None
-        affected = degraded + unavailable
         return Evidence(
-            name="data_quality", value=float(len(affected)), direction=-1,
-            weight=float(min(0.08 * len(affected), 0.20)),
+            name="data_quality", value=float(len(unavailable)), direction=-1,
+            weight=float(min(0.10 * len(unavailable), 0.25)),
             detail=(
-                f"{len(affected)} agent(s) reported on degraded or missing data "
-                f"({', '.join(affected)}); the evidence base is thinner than the "
-                f"headline score implies"
+                f"{len(unavailable)} agent(s) could see no data at all for this "
+                f"prediction ({', '.join(unavailable)}); the evidence base is thinner "
+                f"than the headline score implies"
             ),
         )
 

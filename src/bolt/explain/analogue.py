@@ -76,7 +76,11 @@ def nearest_historical_analogue(
         )
 
     dates = pd.to_datetime(meta["window_end"], utc=True)
-    as_of = pd.Timestamp(as_of, tz="UTC") if as_of is not None else dates.max()
+    if as_of is None:
+        as_of = dates.max()
+    else:
+        as_of = pd.Timestamp(as_of)
+        as_of = as_of.tz_localize("UTC") if as_of.tzinfo is None else as_of.tz_convert("UTC")
 
     # Exclude anything within exclude_days of the query: an overlapping window is
     # the same observation, not a precedent.
@@ -110,11 +114,16 @@ def nearest_historical_analogue(
             "asset": row["asset"],
             "similarity": float(similarity[position]),
             "what_happened_next_30d": _outcome(
-                prices, row["asset"], pd.Timestamp(row["window_end"], tz="UTC"),
-                outcome_window_days,
+                prices, row["asset"], _as_utc(row["window_end"]), outcome_window_days
             ),
         })
     return results
+
+
+def _as_utc(value) -> pd.Timestamp:
+    """Normalise to a tz-aware UTC timestamp, whatever form it arrives in."""
+    stamp = pd.Timestamp(value)
+    return stamp.tz_localize("UTC") if stamp.tzinfo is None else stamp.tz_convert("UTC")
 
 
 def _outcome(prices: pd.Series | None, asset: str, date: pd.Timestamp, days: int) -> dict:

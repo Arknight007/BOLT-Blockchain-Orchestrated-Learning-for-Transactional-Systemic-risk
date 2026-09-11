@@ -151,6 +151,25 @@ evaluation:
   lead_time:
     sustained_days: 2            # >= 2 consecutive days above threshold to count as a warning
 
+agents:                          # ChainGuard multi-agent layer
+  # The Quantitative Agent runs these models and reconciles them. Deliberately
+  # NOT every model in the bench: the volatility rule returns an empirical
+  # percentile rather than a calibrated probability, so including it guarantees
+  # apparent "disagreement" that means nothing. The architecture specifies the
+  # sequence model plus the tabular model, which is what these are.
+  quant_models: ["lstm", "xgb"]
+
+  risk_bands:                    # 0-100 risk score -> severity band
+    moderate: 40.0
+    high:     65.0
+    critical: 80.0
+
+  weights:                       # relative influence in the orchestrator
+    "Quantitative Agent":            0.40
+    "Market Intelligence Agent":     0.25
+    "On-Chain Intelligence Agent":   0.25
+    "News & Sentiment Agent":        0.10
+
 crisis_episodes:                 # for episode-level analysis (G4)
   - {name: "May 2021 selloff", start: "2021-05-10", end: "2021-05-25"}
   - {name: "Terra/LUNA",       start: "2022-05-07", end: "2022-05-16"}

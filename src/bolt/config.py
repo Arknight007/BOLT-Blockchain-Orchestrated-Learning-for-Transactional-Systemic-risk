@@ -182,7 +182,7 @@ class BoltConfig:
 _REQUIRED_SECTIONS = (
     "project", "paths", "data", "assets", "ingest", "labeling", "windows",
     "features", "split", "imbalance", "models", "evaluation",
-    "crisis_episodes", "explain", "chain", "logging",
+    "agents", "crisis_episodes", "explain", "chain", "logging",
 )
 
 _VALID_ROLES = frozenset({"target", "context"})
@@ -337,6 +337,20 @@ def _validate(cfg: BoltConfig) -> None:
     unknown = ({method} | set(raw["imbalance"]["compare_with"])) - known
     if unknown:
         raise ConfigError(f"imbalance: unknown method(s) {sorted(unknown)}; expected {sorted(known)}")
+
+    # --- agents: the quantitative agent's models must exist in the bench
+    quant_models = raw["agents"]["quant_models"]
+    unknown_models = set(quant_models) - set(raw["models"]) - {"n_jobs"}
+    if unknown_models:
+        raise ConfigError(
+            f"agents.quant_models names model(s) {sorted(unknown_models)} that are not "
+            f"configured under `models:`"
+        )
+    bands = raw["agents"]["risk_bands"]
+    if not bands["moderate"] < bands["high"] < bands["critical"]:
+        raise ConfigError(
+            f"agents.risk_bands must increase: moderate < high < critical, got {bands}"
+        )
 
     # --- explainability
     if int(raw["explain"]["analogue"]["exclude_days"]) < cfg.lookback_days:

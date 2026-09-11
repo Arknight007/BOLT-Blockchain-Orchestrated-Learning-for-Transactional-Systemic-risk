@@ -133,10 +133,31 @@ Two properties worth demonstrating to a panel:
   prediction — the record shows what the system knew might be wrong at the moment
   it committed.
 - **The system can refuse to answer.** `INSUFFICIENT_EVIDENCE` is a first-class
-  outcome. Run on the eve of the FTX collapse with no models loaded, the Quant
-  agent reports `UNAVAILABLE`, the Skeptic penalises the thin evidence base, and
-  the Decision agent declines to state a risk level rather than issue one it
-  cannot support.
+  outcome. With no models loaded the Quant agent reports `UNAVAILABLE`, the
+  Skeptic penalises the thin evidence base, and the Decision agent declines to
+  state a risk level rather than issue one it cannot support.
+
+### Agent chain on real dates
+
+```
+BTC 2022-05-06  (Terra/LUNA collapsed 2022-05-07)   CRITICAL  83/100
+BTC 2022-11-05  (FTX collapsed 2022-11-06)          HIGH      69/100
+BTC 2021-07-15                                      LOW       30/100
+BTC 2023-08-01                                      LOW       24/100
+BTC 2024-06-15                                      LOW       19/100
+```
+
+> ### ⚠️ Read this before quoting the two numbers above
+>
+> **These are IN-SAMPLE.** `bolt train` fits the deployment models on every
+> window whose label resolves before 2024-11-17, so the 2022 episodes are inside
+> the training data. Firing CRITICAL the day before Terra/LUNA is a demonstration
+> that the **agent chain wires together correctly** — it is *not* evidence of
+> predictive skill, and presenting it as such would be exactly the hindsight
+> fitting that G5 exists to make impossible.
+>
+> The honest out-of-sample evidence is the walk-forward table above: **PR-AUC
+> 0.170 against a 0.083 baseline.** That is the number to defend.
 
 ---
 

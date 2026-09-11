@@ -1,0 +1,2 @@
+model,method,stability_index,n_episodes,n_pairs,top_k,interpretation
+xgb,shap_tree,0.6012987012987013,4,6,5,"MODERATE consistency: a shared core of drivers recurs, but each episode carries a substantial signature of its own"
