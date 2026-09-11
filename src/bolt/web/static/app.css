@@ -486,7 +486,15 @@ td.wrap { white-space: normal; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 
 .bars { display: flex; flex-direction: column; gap: 2px; }
-.bar-row { display: grid; grid-template-columns: 190px 1fr 62px; align-items: center; gap: 10px; }
+/* Fractional, not fixed. A 190px label column left nothing for the track inside
+ * the 320px sidebar, so every bar collapsed to a stub while the same markup
+ * rendered correctly in a full-width panel. */
+.bar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(44px, 2fr) 46px;
+  align-items: center;
+  gap: 10px;
+}
 .bar-row .lbl { color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; }
 .bar-track { height: 9px; background: var(--bg-raised); overflow: hidden; }
 
