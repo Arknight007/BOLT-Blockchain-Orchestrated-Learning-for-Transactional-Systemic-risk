@@ -33,6 +33,16 @@ CONTAGION_COLUMNS = [
 
 MIN_ASSETS_FOR_CORRELATION = 3
 
+#: Decimals kept on centrality scores. The eigensolver behind
+#: ``eigenvector_centrality_numpy`` is LAPACK-backed and its iteration varies
+#: between runs, so two builds of the SAME correlation graph produced values
+#: differing by up to 8.9e-16 - one ULP. Meaningless for a centrality score,
+#: fatal for a content hash: on near-zero entries a 1e-16 wobble survives ten
+#: significant figures and changes the digest, which silently broke the
+#: "rebuild and compare" reproducibility claim. Twelve decimals is far beyond
+#: anything the measure means and makes the column deterministic.
+CENTRALITY_DECIMALS = 12
+
 
 def returns_matrix(panel: pd.DataFrame, price_col: str = "close") -> pd.DataFrame:
     """Wide (date x asset) log-return matrix from a long (date, asset) panel."""
@@ -71,7 +81,14 @@ def eigen_centrality(corr: pd.DataFrame, min_edge_weight: float) -> pd.Series:
         degree = dict(graph.degree(weight="weight"))
         total = sum(degree.values()) or 1.0
         scores = {k: v / total for k, v in degree.items()}
-    return pd.Series(scores).reindex(corr.columns).fillna(0.0)
+
+    series = pd.Series(scores).reindex(corr.columns).fillna(0.0)
+    # Round at source, not at the hash. See CENTRALITY_DECIMALS: the solver is
+    # not bit-deterministic, and a digest taken downstream cannot repair that.
+    series = series.round(CENTRALITY_DECIMALS)
+    # Collapse denormal dust to exact zero so a sign flip near machine epsilon
+    # cannot produce "-0.0" on one run and "0.0" on the next.
+    return series.mask(series.abs() < 10.0 ** -CENTRALITY_DECIMALS, 0.0)
 
 
 def lead_lag(

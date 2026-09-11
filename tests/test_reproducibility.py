@@ -219,3 +219,35 @@ def test_content_digest_ignores_column_and_row_order():
 
     shuffled = panel[["b", "a"]].sample(frac=1.0, random_state=0)
     assert content_digest(shuffled) == content_digest(panel)
+
+
+def test_eigenvector_centrality_is_bit_reproducible():
+    """The contagion column must not wobble between runs.
+
+    ``nx.eigenvector_centrality_numpy`` is LAPACK-backed and its iteration is
+    not bit-deterministic: two builds of the identical correlation graph
+    produced values differing by up to 8.9e-16 across 6,548 cells of the real
+    panel. That is meaningless as a centrality score and fatal as a hash input,
+    because on near-zero entries a 1e-16 wobble survives ten significant
+    figures and changes the digest - which silently broke "rebuild and compare".
+    """
+    from bolt.features.contagion import eigen_centrality
+
+    rng = np.random.default_rng(11)
+    names = [f"A{i}" for i in range(8)]
+    raw = rng.normal(size=(200, 8))
+    corr = pd.DataFrame(raw, columns=names).corr()
+
+    runs = [eigen_centrality(corr, 0.30) for _ in range(5)]
+    for other in runs[1:]:
+        pd.testing.assert_series_equal(runs[0], other, check_exact=True)
+
+
+def test_centrality_has_no_negative_zero():
+    """-0.0 and 0.0 render differently in CSV and would change the digest."""
+    from bolt.features.contagion import eigen_centrality
+
+    names = [f"A{i}" for i in range(5)]
+    corr = pd.DataFrame(np.eye(5), index=names, columns=names)
+    scores = eigen_centrality(corr, 0.30)
+    assert not any(np.signbit(v) and v == 0.0 for v in scores.to_numpy())

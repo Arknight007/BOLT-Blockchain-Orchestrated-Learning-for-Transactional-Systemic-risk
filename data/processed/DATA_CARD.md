@@ -1,14 +1,14 @@
 # DATA CARD
 
-Generated automatically by `bolt build` on 2026-09-11 10:40 UTC.
+Generated automatically by `bolt build` on 2026-09-11 10:57 UTC.
 Do not edit by hand: this file is regenerated on every build and any manual
 change will be overwritten.
 
-- **Code version:** `eebde3427eacf1b7660da9ff0550e508810afdf7-dirty`
+- **Code version:** `64394d243d85cd069ab7a6fbe6b76bff34a88cb0-dirty`
 - **Config:** `default.yaml`, universe `assets.yaml`
 - **Frozen dataset:** `data/processed/panel.parquet`
-- **Content SHA-256:** `54a455d54aeea2db23b788a9b87e21f2e6ec6ba2d7e5de5459bab05a91a51ecd` <- the reproducibility contract
-- **File SHA-256:** `fe98fd0c9a5acd9a8015a758aefd1d1b7d2d2e8be19fe216d740751ee72e519a` (this specific parquet file)
+- **Content SHA-256:** `da5ce8ebb5fbbfcc6d978c5ef179a42edca330c4f78b0b75ed9c5ff121c5c332` <- the reproducibility contract
+- **File SHA-256:** `804f2e7a249e7c0c4898b8da301d255e9f74d8809d77fa6c508961c4a8a80735` (this specific parquet file)
 
 > **Built from an uncommitted working tree.** The code version above ends in `-dirty`, so the exact code that produced this dataset is not recoverable from the repository. Commit, then rebuild, before relying on this card.
 
@@ -157,12 +157,12 @@ p = pd.read_parquet('data/processed/panel.parquet').sort_index()
 p = p[sorted(p.columns)]
 print(hashlib.sha256(p.to_csv(float_format='%.10g', lineterminator=chr(10)).encode()).hexdigest())
 "
-# expected: 54a455d54aeea2db23b788a9b87e21f2e6ec6ba2d7e5de5459bab05a91a51ecd
+# expected: da5ce8ebb5fbbfcc6d978c5ef179a42edca330c4f78b0b75ed9c5ff121c5c332
 ```
 
 The file hash below is still recorded, but it answers a narrower question: did
 this exact artefact reach you intact.
 
 ```
-file sha256: fe98fd0c9a5acd9a8015a758aefd1d1b7d2d2e8be19fe216d740751ee72e519a
+file sha256: 804f2e7a249e7c0c4898b8da301d255e9f74d8809d77fa6c508961c4a8a80735
 ```
