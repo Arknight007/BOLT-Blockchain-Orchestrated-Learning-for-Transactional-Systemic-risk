@@ -137,6 +137,31 @@ Two properties worth demonstrating to a panel:
   Skeptic penalises the thin evidence base, and the Decision agent declines to
   state a risk level rather than issue one it cannot support.
 
+### Automated monitoring and the honest track record
+
+`bolt monitor` runs the loop that makes the Evaluation and Health agents real:
+resolve every prediction whose horizon has closed, then predict for every asset,
+then check drift. Run across the full history (44 cycles, 45 days apart) it
+produced **269 predictions, 261 resolved** — and the ledger splits itself at the
+training boundary, because a combined number would be worthless:
+
+| period | resolved | alerts | TP | FP | FN | precision | recall |
+|---|---|---|---|---|---|---|---|
+| In-sample (to 2024-11-17) | 203 | 19 | 18 | 1 | 10 | 0.947 | 0.643 |
+| **Out of sample (after)** | **58** | **0** | **0** | **0** | **9** | **undefined** | **0.000** |
+
+> ### This is the headline finding, and it is not a good one
+>
+> **Out of sample the system issued no warnings at all** across 58 resolved
+> predictions, and missed 9 real crashes. The in-sample precision of 0.947
+> describes the period the models were fitted on and nothing else.
+>
+> Two things follow. First, the deployment models do not generalise past their
+> training window on this target — consistent with the walk-forward table above,
+> where the best PR-AUC is roughly 2× random. Second, and more usefully: this is
+> exactly the failure an on-chain commitment record exists to expose. A private
+> backtest would have reported 0.947 and stopped there.
+
 ### Agent chain on real dates
 
 ```
@@ -178,8 +203,31 @@ bolt train    --model all                     # fit and persist all seven models
 bolt evaluate --all --report                  # walk-forward metrics -> outputs/
 bolt explain  --model xgb --consistency       # attribution + G4 consistency
 bolt predict  --asset BTC --as-of 2025-11-01 --commit    # agent chain + on-chain commitment
+bolt monitor  --cycles 44 --every-days 45       # automated resolve -> predict -> health
+bolt serve    --port 8000                      # the ChainGuard terminal
 bolt verify   --payload outputs/predictions/<id>.json --id <id>
 ```
+
+## The terminal
+
+```bash
+bolt serve --port 8000     # then open http://127.0.0.1:8000
+```
+
+A read-only console over the real pipeline — no mock data, no second copy of the
+numbers. Six views, keyboard-driven (`1`–`6`):
+
+| View | What it shows |
+|---|---|
+| MONITOR | the agent chain streaming stage by stage as it executes, then the commitment and, for historical dates, what actually happened |
+| MARKET | price with crisis bands and crash labels, the live feature vector with each value's percentile, the frozen universe |
+| MODELS | the seven-model comparison, PR-AUC per fold, lead time per episode, label sensitivity |
+| DRIVERS | G4 consistency matrix, top drivers by family, per-episode driver ranks |
+| LEDGER | the prediction ledger split in-sample vs out-of-sample, with independent digest verification per row |
+| SYSTEM | pipeline state, model health, feature drift (PSI), and which agents are implemented |
+
+Bound to localhost by default: it exposes a prediction ledger and can spend
+testnet gas. Nothing in it retrains or rewrites the frozen dataset.
 
 Full reproduction: `bash scripts/run_all.sh`.
 
@@ -232,7 +280,8 @@ both. The On-Chain agent repeats the caveat in every report and marks itself
 | 3 | NumPy LSTM/GRU + gradient checks, 7-model bench, embargoed walk-forward | ✅ |
 | 4 | SHAP + gradient attribution, episode consistency (G4) | ✅ |
 | 5 | `PredictionRegistry.sol`, payload hashing, commit + verify (G5) | ✅ contract & payload tested; testnet deploy pending |
-| 6 | Demo notebook, one-command reproduction | 🔶 in progress |
+| 6 | Demo notebook, one-command reproduction | ✅ |
+| — | Automation loop (`bolt monitor`) + ChainGuard terminal (`bolt serve`) | ✅ |
 | 7 | LLM narrative backend, news event identification | ⬜ not started |
 
 ## Tests
@@ -243,6 +292,7 @@ tests/test_lstm_gradcheck.py 15   analytic vs numerical gradients, both models
 tests/test_chain.py          19   payload determinism, tamper detection, verifier independence
 tests/test_contract.py       11   compiled EVM: the overwrite revert G5 rests on
 tests/test_agents.py         23   abstention, skeptic challenges, deterministic serialisation
+tests/test_automation.py     13   append-only ledger, resolve-before-predict ordering
 tests/test_config.py         21   config invariants that would silently corrupt results
 tests/test_cli.py            16   command surface
 tests/test_scaffold.py       ...  structure, clone survival, secret hygiene

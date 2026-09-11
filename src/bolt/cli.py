@@ -104,6 +104,25 @@ def build_parser() -> argparse.ArgumentParser:
                            help="commit the prediction digest on-chain BEFORE the outcome is known (G5)")
     p_predict.set_defaults(func=cmd_predict)
 
+    p_monitor = sub.add_parser(
+        "monitor", help="run automated cycles: resolve matured predictions, predict, check health")
+    _add_config_flag(p_monitor)
+    p_monitor.add_argument("--as-of", default=None, metavar="YYYY-MM-DD",
+                           help="latest cycle date (default: end of the frozen dataset)")
+    p_monitor.add_argument("--cycles", type=int, default=1,
+                           help="how many cycles to run (walks backwards from --as-of)")
+    p_monitor.add_argument("--every-days", type=int, default=0,
+                           help="days between cycles; required when --cycles > 1")
+    p_monitor.add_argument("--commit", action="store_true",
+                           help="commit each prediction on-chain (G5)")
+    p_monitor.set_defaults(func=cmd_monitor)
+
+    p_serve = sub.add_parser("serve", help="serve the ChainGuard terminal web console")
+    _add_config_flag(p_serve)
+    p_serve.add_argument("--host", default="127.0.0.1")
+    p_serve.add_argument("--port", type=int, default=8000)
+    p_serve.set_defaults(func=cmd_serve)
+
     p_verify = sub.add_parser("verify", help="independently verify a committed prediction (G5)")
     p_verify.add_argument("--payload", type=Path, required=True, help="path to the published payload JSON")
     p_verify.add_argument("--id", dest="prediction_id", required=True, help="the prediction id")
@@ -187,6 +206,21 @@ def cmd_predict(args: argparse.Namespace) -> int:
         _load(args), asset=args.asset, as_of=args.as_of,
         model=args.model, commit=args.commit,
     )
+
+
+def cmd_monitor(args: argparse.Namespace) -> int:
+    from bolt.commands import do_monitor
+
+    return do_monitor(
+        _load(args), as_of=args.as_of, commit=args.commit,
+        cycles=args.cycles, every_days=args.every_days,
+    )
+
+
+def cmd_serve(args: argparse.Namespace) -> int:
+    from bolt.commands import do_serve
+
+    return do_serve(_load(args), host=args.host, port=args.port)
 
 
 def cmd_verify(args: argparse.Namespace) -> int:

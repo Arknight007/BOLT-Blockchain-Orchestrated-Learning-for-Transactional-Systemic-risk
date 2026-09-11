@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ChainGuard Terminal</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wordmark">CHAINGUARD <span>TERMINAL</span></div>
+  <div class="masthead-meta">
+    <span>DATASET <b id="m-hash">--</b></span>
+    <span>BUILD <b id="m-build">--</b></span>
+    <span>THRESHOLD <b id="m-threshold">--</b></span>
+    <span>HORIZON <b id="m-horizon">--</b></span>
+    <span id="m-clock">--</span>
+  </div>
+</header>
+
+<nav class="nav" role="tablist" aria-label="Views">
+  <button role="tab" data-view="monitor"  aria-selected="true"><span class="key">1</span>MONITOR</button>
+  <button role="tab" data-view="market"   aria-selected="false"><span class="key">2</span>MARKET</button>
+  <button role="tab" data-view="models"   aria-selected="false"><span class="key">3</span>MODELS</button>
+  <button role="tab" data-view="drivers"  aria-selected="false"><span class="key">4</span>DRIVERS</button>
+  <button role="tab" data-view="ledger"   aria-selected="false"><span class="key">5</span>LEDGER</button>
+  <button role="tab" data-view="system"   aria-selected="false"><span class="key">6</span>SYSTEM</button>
+</nav>
+
+<form class="command" id="command" autocomplete="off">
+  <label for="f-asset">ASSET</label>
+  <select class="field" id="f-asset" style="width:96px"></select>
+
+  <label for="f-date">AS OF</label>
+  <input class="field" id="f-date" type="date" style="width:150px">
+
+  <button class="exec" id="f-run" type="submit">RUN CHAIN</button>
+
+  <label for="f-preset">JUMP</label>
+  <select class="field" id="f-preset" style="width:210px">
+    <option value="">select an episode</option>
+  </select>
+
+  <span class="hint">
+    <kbd>1</kbd>-<kbd>6</kbd> view &middot; <kbd>Enter</kbd> run &middot; <kbd>/</kbd> asset
+  </span>
+</form>
+
+<main class="viewport">
+
+  <!-- ============================================================ MONITOR -->
+  <section class="view" id="view-monitor" data-active role="tabpanel" aria-label="Monitor">
+    <div class="grid sidebar">
+      <div>
+        <div class="panel">
+          <div class="panel-head">
+            <h2>DECISION</h2>
+            <span class="sub" id="d-context">--</span>
+          </div>
+          <dl class="readout" id="d-readout" style="border-top:0">
+            <div><dt>BAND</dt><dd id="d-band">--</dd></div>
+            <div><dt>RISK SCORE</dt><dd id="d-score">--</dd></div>
+            <div><dt>CONFIDENCE</dt><dd id="d-conf">--</dd></div>
+            <div><dt>ACTION</dt><dd class="sm" id="d-action">--</dd></div>
+          </dl>
+          <div class="panel-body" id="d-detail" hidden></div>
+        </div>
+
+        <div class="panel stack">
+          <div class="panel-head">
+            <h2>COMMITMENT</h2>
+            <span class="sub">G5</span>
+          </div>
+          <div class="panel-body" id="c-body">
+            <p class="muted">No prediction issued in this session yet.</p>
+          </div>
+        </div>
+
+        <div class="panel stack">
+          <div class="panel-head">
+            <h2>HINDSIGHT</h2>
+            <span class="sub">what actually happened</span>
+          </div>
+          <div class="panel-body" id="o-body">
+            <p class="muted">Run the chain on a historical date to score the call.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>AGENT CHAIN</h2>
+          <span class="sub" id="chain-sub">independent evidence &rarr; aggregate &rarr; challenge &rarr; decide</span>
+        </div>
+        <div class="chain" id="chain">
+          <p class="empty">
+            Select an asset and date, then <code>RUN CHAIN</code>. Each agent reports
+            independently and in order; nothing is precomputed.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================= MARKET -->
+  <section class="view" id="view-market" role="tabpanel" aria-label="Market">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>PRICE AND CRASH LABELS</h2>
+        <span class="sub" id="t-sub">--</span>
+      </div>
+      <div class="panel-body flush" id="t-chart"><p class="loading">loading</p></div>
+    </div>
+
+    <div class="grid split section">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>FEATURE VECTOR</h2>
+          <span class="sub" id="fv-sub">percentile within each feature's own history</span>
+        </div>
+        <div class="panel-body flush scroll tall" id="fv-body"><p class="loading">loading</p></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h2>UNIVERSE</h2>
+          <span class="sub">frozen before modelling</span>
+        </div>
+        <div class="panel-body flush scroll" id="u-body"><p class="loading">loading</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================= MODELS -->
+  <section class="view" id="view-models" role="tabpanel" aria-label="Models">
+    <div id="models-caveat"></div>
+    <div class="panel">
+      <div class="panel-head">
+        <h2>MODEL COMPARISON</h2>
+        <span class="sub" id="mc-sub">walk-forward, embargoed, mean &plusmn; sd across folds</span>
+      </div>
+      <div class="panel-body flush scroll-x" id="mc-body"><p class="loading">loading</p></div>
+    </div>
+
+    <div class="grid split section">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>PR-AUC BY FOLD</h2>
+          <span class="sub">an average can hide a failed year</span>
+        </div>
+        <div class="panel-body flush scroll-x" id="pf-body"><p class="loading">loading</p></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h2>LEAD TIME</h2>
+          <span class="sub">days of warning before each episode</span>
+        </div>
+        <div class="panel-body flush scroll-x" id="lt-body"><p class="loading">loading</p></div>
+      </div>
+    </div>
+
+    <div class="panel stack">
+      <div class="panel-head">
+        <h2>LABEL SENSITIVITY</h2>
+        <span class="sub">why this crash definition and not another</span>
+      </div>
+      <div class="panel-body flush scroll-x" id="ls-body"><p class="loading">loading</p></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ DRIVERS -->
+  <section class="view" id="view-drivers" role="tabpanel" aria-label="Drivers">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>ATTRIBUTION CONSISTENCY ACROSS CRISES</h2>
+        <span class="sub">G4</span>
+      </div>
+      <div class="panel-body" id="g4-head"><p class="loading">loading</p></div>
+    </div>
+
+    <div class="grid split section">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>PAIRWISE SPEARMAN</h2>
+          <span class="sub">rank correlation of driver rankings</span>
+        </div>
+        <div class="panel-body" id="g4-matrix"></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h2>TOP DRIVERS OVERALL</h2>
+          <span class="sub" id="attr-sub">--</span>
+        </div>
+        <div class="panel-body" id="attr-body"></div>
+      </div>
+    </div>
+
+    <div class="panel stack">
+      <div class="panel-head">
+        <h2>DRIVERS PER EPISODE</h2>
+        <span class="sub">share of total attribution within each crisis</span>
+      </div>
+      <div class="panel-body flush scroll-x" id="g4-episodes"></div>
+    </div>
+  </section>
+
+  <!-- ============================================================= LEDGER -->
+  <section class="view" id="view-ledger" role="tabpanel" aria-label="Ledger">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>TRACK RECORD</h2>
+        <span class="sub">predictions committed before their outcome was known</span>
+      </div>
+      <dl class="readout" id="tr-readout" style="border-top:0"></dl>
+      <div class="panel-body" id="tr-note"></div>
+    </div>
+
+    <div class="panel stack">
+      <div class="panel-head">
+        <h2>PREDICTION LEDGER</h2>
+        <span class="sub">select a row to verify its digest independently</span>
+      </div>
+      <div class="panel-body flush scroll-x" id="lg-body"><p class="loading">loading</p></div>
+    </div>
+
+    <div class="panel stack">
+      <div class="panel-head">
+        <h2>VERIFICATION</h2>
+        <span class="sub">recomputed from the published payload</span>
+      </div>
+      <div class="panel-body" id="vf-body">
+        <p class="muted">Select a ledger row to recompute its SHA-256.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================= SYSTEM -->
+  <section class="view" id="view-system" role="tabpanel" aria-label="System">
+    <div class="grid split">
+      <div class="panel">
+        <div class="panel-head"><h2>PIPELINE STATE</h2></div>
+        <div class="panel-body flush" id="sys-body"><p class="loading">loading</p></div>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <h2>MODEL HEALTH</h2>
+          <span class="sub">drift and decay monitoring</span>
+        </div>
+        <div class="panel-body" id="hl-body"><p class="loading">loading</p></div>
+      </div>
+    </div>
+
+    <div class="panel stack">
+      <div class="panel-head">
+        <h2>FEATURE DRIFT</h2>
+        <span class="sub">population stability index, training era vs recent</span>
+      </div>
+      <div class="panel-body flush scroll" id="dr-body"></div>
+    </div>
+
+    <div class="panel stack">
+      <div class="panel-head">
+        <h2>ARCHITECTURE</h2>
+        <span class="sub">what is implemented and what is not</span>
+      </div>
+      <div class="panel-body flush scroll-x" id="arch-body"></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="status">
+  <span class="live" id="s-live">READY</span>
+  <span>ASSETS <b id="s-assets">--</b></span>
+  <span>FEATURES <b id="s-features">--</b></span>
+  <span>MODELS <b id="s-models">--</b></span>
+  <span>LEDGER <b id="s-ledger">--</b></span>
+  <span id="s-msg"></span>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

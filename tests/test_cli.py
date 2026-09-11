@@ -10,7 +10,10 @@ import pytest
 
 from bolt.cli import MODEL_CHOICES, build_parser, main
 
-EXPECTED_COMMANDS = {"ingest", "build", "train", "evaluate", "explain", "predict", "verify"}
+EXPECTED_COMMANDS = {
+    "ingest", "build", "train", "evaluate", "explain", "predict", "verify",
+    "monitor", "serve",
+}
 
 
 def _subparsers(parser):
@@ -101,7 +104,7 @@ def test_every_spec_command_is_implemented():
     import bolt.commands as commands
 
     for name in ("do_ingest", "do_build", "do_train", "do_evaluate",
-                 "do_explain", "do_predict", "do_verify"):
+                 "do_explain", "do_predict", "do_verify", "do_monitor", "do_serve"):
         assert hasattr(commands, name), f"bolt.commands.{name} is missing"
 
 

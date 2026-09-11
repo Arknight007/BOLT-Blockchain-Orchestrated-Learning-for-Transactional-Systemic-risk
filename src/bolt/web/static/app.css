@@ -1,0 +1,652 @@
+/* ChainGuard Terminal
+ *
+ * A research console, not a marketing surface. Every choice below follows from
+ * one question: what does someone reading dense numerical evidence for an hour
+ * actually need?
+ *
+ *   - True black ground. The use scene is a dark room, a long session, and a
+ *     reader comparing columns of figures. Black maximises the contrast of the
+ *     one thing that matters (the digits) and minimises everything else.
+ *   - Monospace throughout. Not as a costume for "technical" - this surface is
+ *     entirely data and measurement, and column alignment is load-bearing when
+ *     you are scanning 21 feature percentiles for the one that is anomalous.
+ *   - 1px hairlines, no radius, no shadow. Depth would imply a hierarchy the
+ *     data does not have. Separation comes from rules and space.
+ *   - Colour is semantic only. Amber = the system speaking, cyan = a label,
+ *     green/amber/red = risk bands, white = a value you should read. Nothing is
+ *     coloured for decoration, so anything coloured means something.
+ */
+
+:root {
+  --bg: #000000;
+  --bg-panel: #07080a;
+  --bg-raised: #0e1014;
+  --bg-hover: #14171c;
+
+  --rule: #1b1f26;
+  --rule-strong: #2b323c;
+
+  --fg: #e6e4e1;
+  --fg-dim: #939aa4;
+  --fg-faint: #5d646d;
+
+  --amber: #ffa028;
+  --amber-dim: #7a4e13;
+  --cyan: #4dc3d9;
+  --green: #3fb950;
+  --yellow: #d9a441;
+  --red: #f8524b;
+  --violet: #a68cf0;
+
+  --risk-low: var(--green);
+  --risk-moderate: var(--yellow);
+  --risk-high: #ff8c42;
+  --risk-critical: var(--red);
+  --risk-none: var(--fg-faint);
+
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo,
+    Consolas, "DejaVu Sans Mono", monospace;
+
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --fast: 120ms;
+  --base: 200ms;
+
+  --row: 22px;
+  --gutter: 14px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+body { display: flex; flex-direction: column; overflow: hidden; }
+
+/* ---------------------------------------------------------------- masthead */
+
+.masthead {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 var(--gutter);
+  height: 30px;
+  flex: 0 0 30px;
+  border-bottom: 1px solid var(--rule-strong);
+  background: var(--bg-panel);
+}
+
+.wordmark {
+  color: var(--amber);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.wordmark span { color: var(--fg-faint); font-weight: 400; letter-spacing: 0.1em; }
+
+.masthead-meta {
+  margin-left: auto;
+  display: flex;
+  gap: 18px;
+  color: var(--fg-faint);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.masthead-meta b { color: var(--fg-dim); font-weight: 400; }
+
+/* -------------------------------------------------------------------- nav */
+
+.nav {
+  display: flex;
+  flex: 0 0 26px;
+  height: 26px;
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg);
+}
+
+.nav button {
+  appearance: none;
+  background: none;
+  border: 0;
+  border-right: 1px solid var(--rule);
+  color: var(--fg-dim);
+  font: inherit;
+  letter-spacing: 0.08em;
+  padding: 0 14px;
+  cursor: pointer;
+  position: relative;
+  transition: color var(--fast) var(--ease), background var(--fast) var(--ease);
+}
+
+.nav button:hover { color: var(--fg); background: var(--bg-hover); }
+
+.nav button::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 2px;
+  background: var(--amber);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--base) var(--ease);
+}
+
+.nav button[aria-selected="true"] { color: var(--amber); }
+.nav button[aria-selected="true"]::after { transform: scaleX(1); }
+
+.nav .key {
+  color: var(--fg-faint);
+  margin-right: 7px;
+  font-size: 11px;
+}
+
+.nav button[aria-selected="true"] .key { color: var(--amber-dim); }
+
+/* ------------------------------------------------------------- command bar */
+
+.command {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 34px;
+  height: 34px;
+  padding: 0 var(--gutter);
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg-panel);
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.command::-webkit-scrollbar { display: none; }
+
+.command label {
+  color: var(--cyan);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.field {
+  background: var(--bg);
+  border: 1px solid var(--rule-strong);
+  color: var(--fg);
+  font: inherit;
+  padding: 3px 7px;
+  min-width: 0;
+  transition: border-color var(--fast) var(--ease);
+}
+
+.field:hover { border-color: var(--fg-faint); }
+.field:focus { outline: none; border-color: var(--amber); }
+
+select.field { cursor: pointer; }
+
+.exec {
+  appearance: none;
+  border: 1px solid var(--amber);
+  background: transparent;
+  color: var(--amber);
+  font: inherit;
+  letter-spacing: 0.12em;
+  padding: 3px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+
+.exec:hover:not(:disabled) { background: var(--amber); color: #000; }
+.exec:active:not(:disabled) { background: var(--amber-dim); color: var(--fg); }
+.exec:disabled { border-color: var(--rule-strong); color: var(--fg-faint); cursor: not-allowed; }
+
+.hint { color: var(--fg-faint); white-space: nowrap; }
+.hint kbd {
+  font: inherit;
+  border: 1px solid var(--rule-strong);
+  padding: 0 4px;
+  color: var(--fg-dim);
+}
+
+/* ------------------------------------------------------------------ views */
+
+.viewport { flex: 1 1 auto; overflow: hidden; position: relative; }
+
+.view {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: var(--gutter);
+  display: none;
+}
+
+.view[data-active] {
+  display: block;
+  animation: view-in var(--base) var(--ease) both;
+}
+
+@keyframes view-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.grid { display: grid; gap: var(--gutter); align-items: start; }
+.grid.split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.grid.sidebar { grid-template-columns: minmax(0, 320px) minmax(0, 1fr); }
+.grid.thirds { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+@media (max-width: 1100px) {
+  .grid.split, .grid.sidebar, .grid.thirds { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ----------------------------------------------------------------- panels */
+
+.panel { border: 1px solid var(--rule); background: var(--bg-panel); min-width: 0; }
+
+/* Spacing hierarchy: panels stacked inside one column are siblings and sit
+ * close; a new subject on the page gets roughly double the air. Uniform gaps
+ * everywhere would read as a wall rather than as groups. */
+.stack { margin-top: 10px; }
+.section { margin-top: 22px; }
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px var(--gutter);
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg-raised);
+}
+
+.panel-head h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  color: var(--cyan);
+}
+
+.panel-head .sub { color: var(--fg-faint); font-size: 11px; margin-left: auto; text-align: right; }
+
+.panel-body { padding: var(--gutter); }
+.panel-body.flush { padding: 0; }
+
+.note {
+  color: var(--fg-dim);
+  border-left: 1px solid var(--rule-strong);
+  padding-left: 10px;
+  margin: 10px 0 0;
+  max-width: 74ch;
+}
+
+.note.warn { border-left-color: var(--yellow); color: var(--yellow); }
+.note.bad { border-left-color: var(--red); color: var(--red); }
+
+/* ----------------------------------------------------------------- tables */
+
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--fg-faint);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--rule-strong);
+  padding: 3px var(--gutter);
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 2px var(--gutter);
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+  height: var(--row);
+}
+
+tbody tr { transition: background var(--fast) linear; }
+tbody tr:hover { background: var(--bg-hover); }
+tbody tr[data-emphasis] { background: #0f1114; }
+
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.value { color: var(--fg); }
+td.muted, .muted { color: var(--fg-faint); }
+td.wrap { white-space: normal; }
+
+.scroll { max-height: 340px; overflow: auto; }
+.scroll.tall { max-height: 620px; }
+.scroll-x { overflow-x: auto; }
+
+/* --------------------------------------------------------------- semantics */
+
+.LOW      { color: var(--risk-low); }
+.MODERATE { color: var(--risk-moderate); }
+.HIGH     { color: var(--risk-high); }
+.CRITICAL { color: var(--risk-critical); }
+.INSUFFICIENT_EVIDENCE { color: var(--fg-faint); }
+
+.pos { color: var(--green); }
+.neg { color: var(--red); }
+.up::before { content: "+"; }
+
+.tag {
+  display: inline-block;
+  border: 1px solid currentColor;
+  padding: 0 5px;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  line-height: 15px;
+}
+
+.st-OK { color: var(--green); }
+.st-DEGRADED { color: var(--yellow); }
+.st-UNAVAILABLE { color: var(--red); }
+.st-NOT_IMPLEMENTED { color: var(--fg-faint); }
+
+.TRUE_POSITIVE, .TRUE_NEGATIVE { color: var(--green); }
+.FALSE_POSITIVE, .FALSE_NEGATIVE { color: var(--red); }
+.PENDING, .UNRESOLVED { color: var(--fg-faint); }
+
+.PRIMARY { color: var(--green); }
+.DERIVED { color: var(--cyan); }
+.PROXY   { color: var(--yellow); }
+
+/* ------------------------------------------------------------- agent chain */
+
+.chain { display: flex; flex-direction: column; }
+
+.stage {
+  border-bottom: 1px solid var(--rule);
+  padding: 8px var(--gutter);
+  animation: stage-in 320ms var(--ease) both;
+}
+
+/* The one authored motion moment in the product: the chain resolving stage by
+ * stage as the agents actually execute. It exists because the ORDER is the
+ * argument - independent evidence, then aggregation, then challenge, then a
+ * decision. A finished number appearing all at once would hide it. */
+@keyframes stage-in {
+  from { opacity: 0; transform: translateY(-3px); clip-path: inset(0 0 100% 0); }
+  to   { opacity: 1; transform: none; clip-path: inset(0 0 0 0); }
+}
+
+.stage-head { display: flex; align-items: baseline; gap: 10px; }
+
+.stage-name {
+  color: var(--fg);
+  letter-spacing: 0.06em;
+  min-width: 220px;
+}
+
+.stage-verdict { margin-left: auto; display: flex; align-items: baseline; gap: 14px; }
+
+.stage-score { font-size: 15px; letter-spacing: 0.02em; }
+
+.evidence { margin: 6px 0 0; padding: 0; list-style: none; }
+
+.evidence li {
+  display: flex;
+  gap: 8px;
+  color: var(--fg-dim);
+  padding: 1px 0 1px 10px;
+  animation: fade-in 260ms var(--ease) both;
+}
+
+.evidence .dir { flex: 0 0 12px; text-align: center; }
+.evidence .dir[data-d="1"] { color: var(--red); }
+.evidence .dir[data-d="-1"] { color: var(--green); }
+.evidence .dir[data-d="0"] { color: var(--fg-faint); }
+
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.stage-note {
+  color: var(--fg-faint);
+  padding: 4px 0 0 10px;
+  max-width: 96ch;
+  white-space: normal;
+}
+
+.stage-note.flag { color: var(--yellow); }
+
+.meter {
+  height: 3px;
+  background: var(--bg-raised);
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.meter i {
+  display: block;
+  height: 100%;
+  background: currentColor;
+  transform-origin: left;
+  animation: meter 420ms var(--ease) both;
+}
+
+@keyframes meter { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.awaiting {
+  color: var(--fg-faint);
+  padding: 8px var(--gutter);
+  border-bottom: 1px solid var(--rule);
+}
+
+.awaiting::after {
+  content: "_";
+  animation: caret 1s steps(2) infinite;
+  color: var(--amber);
+}
+
+@keyframes caret { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
+
+/* ------------------------------------------------------------------ readout */
+
+.readout { display: flex; flex-wrap: wrap; gap: 0; border-top: 1px solid var(--rule); }
+
+.readout div {
+  flex: 1 1 150px;
+  padding: 7px var(--gutter);
+  border-right: 1px solid var(--rule);
+  min-width: 0;
+}
+
+.readout div:last-child { border-right: 0; }
+.readout dt { color: var(--fg-faint); font-size: 11px; letter-spacing: 0.08em; }
+.readout dd { margin: 2px 0 0; font-size: 14px; color: var(--fg); overflow-wrap: anywhere; }
+.readout dd.sm { font-size: 12px; }
+
+/* ------------------------------------------------------------------ charts */
+
+.chart { display: block; width: 100%; height: auto; }
+.chart text { fill: var(--fg-faint); font-family: var(--mono); font-size: 9px; }
+.chart .axis { stroke: var(--rule); stroke-width: 1; }
+.chart .series { fill: none; stroke: var(--amber); stroke-width: 1.1; vector-effect: non-scaling-stroke; }
+.chart .band { fill: var(--red); opacity: 0.14; }
+.chart .mark { fill: var(--red); opacity: 0.85; }
+.chart .cursor { stroke: var(--cyan); stroke-width: 1; }
+
+.chart .draw {
+  stroke-dasharray: var(--len);
+  stroke-dashoffset: var(--len);
+  animation: draw 900ms var(--ease) forwards;
+}
+
+@keyframes draw { to { stroke-dashoffset: 0; } }
+
+.bars { display: flex; flex-direction: column; gap: 2px; }
+.bar-row { display: grid; grid-template-columns: 190px 1fr 62px; align-items: center; gap: 10px; }
+.bar-row .lbl { color: var(--fg-dim); overflow: hidden; text-overflow: ellipsis; }
+.bar-track { height: 9px; background: var(--bg-raised); overflow: hidden; }
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--amber);
+  transform-origin: left;
+  animation: meter 520ms var(--ease) both;
+}
+
+.bar-fill[data-family="contagion"] { background: var(--violet); }
+.bar-fill[data-family="onchain"] { background: var(--cyan); }
+.bar-fill[data-family="sentiment"] { background: var(--yellow); }
+
+.matrix { border-collapse: collapse; }
+.matrix td, .matrix th { border: 1px solid var(--rule); padding: 5px 8px; text-align: center; }
+.matrix th { color: var(--fg-faint); font-weight: 400; white-space: nowrap; }
+.matrix td { color: #000; font-weight: 700; transition: filter var(--fast) var(--ease); }
+.matrix td:hover { filter: brightness(1.25); }
+
+/* ---------------------------------------------------------------- feedback */
+
+.flash { animation: flash 520ms var(--ease); }
+@keyframes flash { from { background: #1d1608; } to { background: transparent; } }
+
+.empty { color: var(--fg-faint); padding: 18px var(--gutter); }
+.empty code { color: var(--amber); }
+
+.err {
+  color: var(--red);
+  border: 1px solid var(--red);
+  padding: 8px var(--gutter);
+  margin-bottom: var(--gutter);
+  white-space: normal;
+}
+
+.loading { color: var(--fg-faint); padding: 14px var(--gutter); }
+.loading::after { content: "..."; animation: caret 1.1s steps(3) infinite; }
+
+.caveat {
+  border: 1px solid var(--yellow);
+  color: var(--yellow);
+  padding: 8px var(--gutter);
+  margin-bottom: var(--gutter);
+  white-space: normal;
+  max-width: 100ch;
+}
+
+.caveat b { color: #ffd27a; }
+
+/* ------------------------------------------------------------------ status */
+
+.status {
+  flex: 0 0 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 var(--gutter);
+  border-top: 1px solid var(--rule-strong);
+  background: var(--bg-panel);
+  color: var(--fg-faint);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.status .live { color: var(--green); }
+.status .live[data-busy] { color: var(--amber); }
+.status b { color: var(--fg-dim); font-weight: 400; }
+
+a { color: var(--cyan); text-decoration: none; border-bottom: 1px solid currentColor; }
+a:hover { color: var(--amber); }
+
+::selection { background: var(--amber); color: #000; }
+
+:focus-visible { outline: 1px solid var(--amber); outline-offset: 1px; }
+
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--rule-strong); }
+::-webkit-scrollbar-thumb:hover { background: var(--fg-faint); }
+
+/* ------------------------------------------------------------------ narrow
+ *
+ * The use scene for this console is a wide desktop; a terminal is a desktop
+ * instrument. But it must not BREAK on a phone, and the fixed-height chrome
+ * rows above would otherwise push the page into horizontal scroll.
+ *
+ * Below 900px every fixed row becomes an auto-height wrapping row, the view
+ * stack stops being absolutely positioned, and the nav scrolls within itself
+ * rather than scrolling the page. Wide tables keep their own .scroll-x, so
+ * they remain readable without the body ever scrolling sideways.
+ */
+@media (max-width: 900px) {
+  html, body { height: auto; overflow-x: hidden; }
+  body { overflow-y: auto; min-height: 100%; }
+
+  .masthead {
+    height: auto;
+    min-height: 30px;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    padding-block: 5px;
+  }
+
+  .masthead-meta { margin-left: 0; width: 100%; flex-wrap: wrap; gap: 6px 14px; }
+
+  .nav {
+    flex: 0 0 auto;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav::-webkit-scrollbar { display: none; }
+  .nav button { padding: 0 11px; white-space: nowrap; flex: 0 0 auto; }
+
+  .command {
+    height: auto;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    overflow-x: visible;
+    padding-block: 7px;
+    gap: 8px;
+  }
+
+  /* Keyboard shortcuts do not exist on a touch device. */
+  .command .hint { display: none; }
+  .command .field { flex: 1 1 110px; width: auto !important; min-width: 90px; }
+  .exec { flex: 1 1 130px; }
+
+  /* The absolutely-positioned view stack cannot measure its own height. */
+  .viewport { position: static; overflow: visible; flex: 1 1 auto; }
+  .view { position: static; inset: auto; overflow: visible; }
+
+  .status {
+    height: auto;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    padding-block: 5px;
+    white-space: normal;
+  }
+
+  .panel-head { flex-wrap: wrap; }
+  .panel-head .sub { margin-left: 0; text-align: left; width: 100%; }
+  .stage-name { min-width: 0; }
+  .stage-head { flex-wrap: wrap; }
+  .stage-verdict { margin-left: 0; width: 100%; }
+  .bar-row { grid-template-columns: minmax(0, 1fr) 54px; }
+  .bar-row .bar-track { display: none; }
+  .readout div { flex: 1 1 132px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}

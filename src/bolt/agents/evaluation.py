@@ -46,6 +46,16 @@ class Outcome:
     resolved: bool
     detail: str
 
+    @classmethod
+    def from_dict(cls, record: dict) -> "Outcome":
+        """Rebuild from a ledger line, ignoring fields the store added."""
+        fields = {
+            "prediction_id", "asset", "as_of_date", "horizon_days", "predicted_band",
+            "predicted_probability", "actual_max_drawdown", "crash_occurred",
+            "classification", "resolved", "detail",
+        }
+        return cls(**{k: v for k, v in record.items() if k in fields})
+
     def to_dict(self) -> dict:
         return {
             "prediction_id": self.prediction_id, "asset": self.asset,

@@ -49,3 +49,8 @@ outputs/*.log
 # --- os ---
 Thumbs.db
 .DS_Store
+
+# --- console / dev artefacts ---
+outputs/shots/
+outputs/serve_test.log
+outputs/monitor_run.txt

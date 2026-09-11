@@ -316,3 +316,95 @@ def do_verify(payload: str, prediction_id: str, rpc_url: str | None,
     print()
     print(result.render())
     return 0 if result.match else 1
+
+
+# ---------------------------------------------------------------------------
+# bolt monitor  (automation layer)
+# ---------------------------------------------------------------------------
+
+def do_monitor(cfg: BoltConfig, as_of: str | None = None, commit: bool = False,
+               cycles: int = 1, every_days: int = 0) -> int:
+    """Run one or more automated monitoring cycles.
+
+    Each cycle resolves matured predictions, predicts for every target asset,
+    and runs the health check. With ``cycles > 1`` and ``every_days > 0`` it
+    walks backwards through history, which is how a track record is built from
+    a frozen dataset without waiting for real time to pass.
+    """
+    from bolt.automation import run_cycle
+    from bolt.store import PredictionStore
+
+    store = PredictionStore(cfg.path("predictions") / "ledger")
+    panel = load_panel(cfg, targets_only=False)
+    latest = panel.index.get_level_values("date").max()
+    start = pd.Timestamp(as_of) if as_of else latest
+    if start.tzinfo is None:
+        start = start.tz_localize("UTC")
+
+    if cycles > 1 and every_days <= 0:
+        raise SystemExit("bolt monitor: --cycles > 1 requires --every-days")
+
+    # Walk forward from the oldest cycle so resolutions land in causal order.
+    dates = [start - pd.Timedelta(every_days * i, "D") for i in range(cycles)][::-1]
+
+    for number, date in enumerate(dates, start=1):
+        log.info("cycle %d/%d  as-of %s", number, len(dates), date.date())
+        result = run_cycle(cfg, as_of=date, commit=commit, store=store)
+        summary = result.summary()
+        print(
+            f"{summary['as_of']}  predictions={summary['predictions']:2d}  "
+            f"alerts={summary['alerts']:2d}  resolved={summary['resolved']:2d}  "
+            f"committed={summary['committed']:2d}"
+            + (f"  ALERTS: {', '.join(summary['alert_assets'])}" if summary["alerts"] else "")
+        )
+
+    boundary = (
+        pd.Timestamp(cfg.folds[-1].test_start, tz="UTC")
+        - pd.Timedelta(cfg.embargo_days, "D")
+    ).date().isoformat()
+    record = store.track_record(training_boundary=boundary)
+    print()
+    print("=== TRACK RECORD ===")
+    print(f"  predictions issued : {record['predictions']}")
+    print(f"  committed on-chain : {record['committed']}")
+    print(f"  resolved           : {record['resolved']}")
+    print(f"  pending horizon    : {record['pending']}")
+    for key, value in sorted(record["counts"].items()):
+        print(f"    {key:<16} {value}")
+    for label, key in (("IN-SAMPLE", "in_sample"), ("OUT OF SAMPLE", "out_of_sample")):
+        block = record.get(key)
+        if not block or not block["resolved"]:
+            continue
+        print()
+        print(f"  {label} (training boundary {boundary})")
+        print(f"    resolved   : {block['resolved']}")
+        print(f"    alerts     : {block['alerts']}")
+        for name, value in sorted(block["counts"].items()):
+            print(f"      {name:<16} {value}")
+        if block["precision"] is not None:
+            print(f"    precision  : {block['precision']:.3f}")
+        if block["recall"] is not None:
+            print(f"    recall     : {block['recall']:.3f}")
+
+    print()
+    print("  IN-SAMPLE figures are NOT evidence of foresight: the deployment models")
+    print("  were fitted on that period. Only the out-of-sample block is a real test.")
+    return 0
+
+
+def do_serve(cfg: BoltConfig, host: str = "127.0.0.1", port: int = 8000,
+             reload: bool = False) -> int:
+    """Serve the ChainGuard terminal."""
+    try:
+        import uvicorn
+    except ImportError as exc:
+        raise SystemExit(
+            "the web console needs fastapi and uvicorn: "
+            "pip install 'fastapi>=0.115' 'uvicorn[standard]>=0.32'"
+        ) from exc
+
+    from bolt.web.app import create_app
+
+    log.info("ChainGuard terminal on http://%s:%d", host, port)
+    uvicorn.run(create_app(cfg), host=host, port=port, log_level="info")
+    return 0
