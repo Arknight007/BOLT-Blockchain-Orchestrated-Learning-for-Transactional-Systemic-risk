@@ -83,7 +83,8 @@ def do_build(cfg: BoltConfig, refresh: bool = False, skip_windows: bool = False)
 
     result = run_build(cfg, refresh=refresh)
     log.info("panel: %s -> %s", result.panel.shape, result.panel_path)
-    log.info("sha256: %s", result.sha256)
+    log.info("content sha256 (stable across rebuilds): %s", result.content_sha256)
+    log.info("file sha256    (this parquet only):      %s", result.sha256)
     log.info("data card: %s", result.data_card)
 
     if not skip_windows:

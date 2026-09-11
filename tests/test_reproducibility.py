@@ -149,3 +149,73 @@ def test_the_committed_digest_is_reproducible(dataset):
         for score in scores
     ]
     assert digest_hex(payloads[0]) == digest_hex(payloads[1])
+
+
+def test_content_digest_is_stable_across_container_rewrites():
+    """The reproducibility contract must survive a rebuild.
+
+    Parquet embeds writer metadata, so writing identical data twice yields
+    different file bytes - measured on the real panel: f8532919... and
+    925ac6c8... for content assert_frame_equal confirmed identical. Hashing the
+    FILE therefore reports a mismatch to anyone who rebuilds, which is exactly
+    backwards for a claim that says "rebuild and check the hash".
+    """
+    import tempfile
+    from pathlib import Path
+
+    from bolt.align.build import content_digest
+
+    rng = np.random.default_rng(3)
+    dates = pd.date_range("2021-01-01", periods=200, freq="D", tz="UTC")
+    frame = pd.DataFrame(
+        {"close": rng.normal(100, 5, 200), "vol": rng.normal(0.3, 0.05, 200)},
+        index=dates,
+    )
+    frame["asset"] = "BTC"
+    panel = frame.set_index("asset", append=True)
+    panel.index.names = ["date", "asset"]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        first = Path(tmp) / "a.parquet"
+        second = Path(tmp) / "b.parquet"
+        panel.to_parquet(first, engine="pyarrow", compression="snappy")
+        panel.to_parquet(second, engine="pyarrow", compression="snappy")
+
+        reloaded_a = pd.read_parquet(first)
+        reloaded_b = pd.read_parquet(second)
+
+        assert content_digest(reloaded_a) == content_digest(panel), (
+            "a parquet round trip must not change the content digest"
+        )
+        assert content_digest(reloaded_a) == content_digest(reloaded_b)
+
+
+def test_content_digest_detects_a_real_change():
+    """Stability is only useful if the digest still catches actual edits."""
+    from bolt.align.build import content_digest
+
+    dates = pd.date_range("2021-01-01", periods=50, freq="D", tz="UTC")
+    frame = pd.DataFrame({"close": np.linspace(100, 120, 50)}, index=dates)
+    frame["asset"] = "BTC"
+    panel = frame.set_index("asset", append=True)
+    panel.index.names = ["date", "asset"]
+
+    baseline = content_digest(panel)
+    altered = panel.copy()
+    altered.iloc[0, 0] += 0.001
+    assert content_digest(altered) != baseline
+
+
+def test_content_digest_ignores_column_and_row_order():
+    from bolt.align.build import content_digest
+
+    dates = pd.date_range("2021-01-01", periods=30, freq="D", tz="UTC")
+    frame = pd.DataFrame(
+        {"b": np.arange(30.0), "a": np.arange(30.0) * 2}, index=dates
+    )
+    frame["asset"] = "BTC"
+    panel = frame.set_index("asset", append=True)
+    panel.index.names = ["date", "asset"]
+
+    shuffled = panel[["b", "a"]].sample(frac=1.0, random_state=0)
+    assert content_digest(shuffled) == content_digest(panel)

@@ -96,12 +96,23 @@ def write_data_card(
     sources: dict[str, str],
     excluded: list[str],
     notes: list[str],
+    content_sha256: str = "",
+    code_version: str = "",
 ) -> Path:
     """Write ``data/processed/DATA_CARD.md`` and return its path."""
     out = cfg.path("processed") / "DATA_CARD.md"
     out.parent.mkdir(parents=True, exist_ok=True)
     generated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     features = list(cfg.feature_columns)
+    # Captured before the build wrote anything; see run_build().
+    code_version = code_version or git_commit_sha(cfg.repo_root)
+    dirty_warning = (
+        "\n> **Built from an uncommitted working tree.** The code version above "
+        "ends in `-dirty`, so the exact code that produced this dataset is not "
+        "recoverable from the repository. Commit, then rebuild, before relying "
+        "on this card.\n"
+        if code_version.endswith("-dirty") else ""
+    )
 
     labelled = panel["label"].dropna()
     positive_rate = float(labelled.mean()) if len(labelled) else float("nan")
@@ -112,10 +123,12 @@ Generated automatically by `bolt build` on {generated}.
 Do not edit by hand: this file is regenerated on every build and any manual
 change will be overwritten.
 
-- **Code version:** `{git_commit_sha(cfg.repo_root)}`
+- **Code version:** `{code_version}`
 - **Config:** `{cfg.config_path.name}`, universe `{cfg.assets_path.name}`
 - **Frozen dataset:** `{panel_path.relative_to(cfg.repo_root).as_posix()}`
-- **SHA-256:** `{sha256}`
+- **Content SHA-256:** `{content_sha256}` <- the reproducibility contract
+- **File SHA-256:** `{sha256}` (this specific parquet file)
+{dirty_warning}
 - **Shape:** {len(panel):,} rows x {panel.shape[1]} columns
 - **Coverage:** {report.date_min} to {report.date_max}, {report.assets} assets
 - **Label:** {cfg.drawdown_threshold:.0%} drawdown within {cfg.horizon_days} days,
@@ -159,11 +172,29 @@ bolt ingest --config config/default.yaml    # cached; a second run makes zero AP
 bolt build  --config config/default.yaml    # regenerates this file and the parquet above
 ```
 
-Verify you hold the same dataset that produced the reported results:
+## Verifying you hold the same data
+
+Use the **content** hash, not the file hash. Parquet embeds writer metadata that
+differs between runs, so two rebuilds of byte-identical data produce different
+file digests - measured on this project: `f8532919...` and `925ac6c8...` for
+content that `assert_frame_equal` confirmed identical. Hashing the file would
+therefore report a mismatch to anyone who rebuilt, which is exactly backwards.
 
 ```bash
-python -c "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('{panel_path.relative_to(cfg.repo_root).as_posix()}').read_bytes()).hexdigest())"
-# expected: {sha256}
+python -c "
+import pandas as pd, hashlib
+p = pd.read_parquet('{panel_path.relative_to(cfg.repo_root).as_posix()}').sort_index()
+p = p[sorted(p.columns)]
+print(hashlib.sha256(p.to_csv(float_format='%.10g', lineterminator=chr(10)).encode()).hexdigest())
+"
+# expected: {content_sha256}
+```
+
+The file hash below is still recorded, but it answers a narrower question: did
+this exact artefact reach you intact.
+
+```
+file sha256: {sha256}
 ```
 """
     out.write_text(body, encoding="utf-8")

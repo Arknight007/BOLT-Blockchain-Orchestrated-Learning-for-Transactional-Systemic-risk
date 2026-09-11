@@ -1,13 +1,17 @@
 # DATA CARD
 
-Generated automatically by `bolt build` on 2026-09-11 03:18 UTC.
+Generated automatically by `bolt build` on 2026-09-11 10:40 UTC.
 Do not edit by hand: this file is regenerated on every build and any manual
 change will be overwritten.
 
-- **Code version:** `f8c3ec511b20344a6ac5bd00a95a8c7d771a71d1-dirty`
+- **Code version:** `eebde3427eacf1b7660da9ff0550e508810afdf7-dirty`
 - **Config:** `default.yaml`, universe `assets.yaml`
 - **Frozen dataset:** `data/processed/panel.parquet`
-- **SHA-256:** `f8532919fc0529d4d64aec855222259018f17f32c8722957a4145f448bc4eab1`
+- **Content SHA-256:** `54a455d54aeea2db23b788a9b87e21f2e6ec6ba2d7e5de5459bab05a91a51ecd` <- the reproducibility contract
+- **File SHA-256:** `fe98fd0c9a5acd9a8015a758aefd1d1b7d2d2e8be19fe216d740751ee72e519a` (this specific parquet file)
+
+> **Built from an uncommitted working tree.** The code version above ends in `-dirty`, so the exact code that produced this dataset is not recoverable from the repository. Commit, then rebuild, before relying on this card.
+
 - **Shape:** 16,854 rows x 25 columns
 - **Coverage:** 2020-01-01 to 2025-12-31, 10 assets
 - **Label:** 20% drawdown within 14 days,
@@ -138,9 +142,27 @@ bolt ingest --config config/default.yaml    # cached; a second run makes zero AP
 bolt build  --config config/default.yaml    # regenerates this file and the parquet above
 ```
 
-Verify you hold the same dataset that produced the reported results:
+## Verifying you hold the same data
+
+Use the **content** hash, not the file hash. Parquet embeds writer metadata that
+differs between runs, so two rebuilds of byte-identical data produce different
+file digests - measured on this project: `f8532919...` and `925ac6c8...` for
+content that `assert_frame_equal` confirmed identical. Hashing the file would
+therefore report a mismatch to anyone who rebuilt, which is exactly backwards.
 
 ```bash
-python -c "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('data/processed/panel.parquet').read_bytes()).hexdigest())"
-# expected: f8532919fc0529d4d64aec855222259018f17f32c8722957a4145f448bc4eab1
+python -c "
+import pandas as pd, hashlib
+p = pd.read_parquet('data/processed/panel.parquet').sort_index()
+p = p[sorted(p.columns)]
+print(hashlib.sha256(p.to_csv(float_format='%.10g', lineterminator=chr(10)).encode()).hexdigest())
+"
+# expected: 54a455d54aeea2db23b788a9b87e21f2e6ec6ba2d7e5de5459bab05a91a51ecd
+```
+
+The file hash below is still recorded, but it answers a narrower question: did
+this exact artefact reach you intact.
+
+```
+file sha256: fe98fd0c9a5acd9a8015a758aefd1d1b7d2d2e8be19fe216d740751ee72e519a
 ```

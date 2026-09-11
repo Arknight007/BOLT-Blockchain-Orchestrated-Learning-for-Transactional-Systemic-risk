@@ -41,13 +41,40 @@ log = get_logger(__name__)
 PANEL_FILENAME = "panel.parquet"
 DATA_CARD_FILENAME = "DATA_CARD.md"
 
+#: Significant figures used when hashing panel CONTENT. Fixed so the digest is
+#: stable across platforms and float repr changes.
+CONTENT_PRECISION = 10
+
+
+def content_digest(panel: pd.DataFrame, precision: int = CONTENT_PRECISION) -> str:
+    """SHA-256 over the panel's CONTENT, independent of the container bytes.
+
+    Parquet embeds writer metadata that changes between runs, so hashing the
+    file gives a different digest every rebuild even when the data is identical
+    - measured here: two rebuilds from the same cache produced
+    f8532919... and 925ac6c8... for byte-identical content.
+
+    That made the file hash useless as a reproducibility check: anyone who
+    rebuilt would see a mismatch and reasonably conclude the data had changed.
+    This digest is taken over a canonical CSV rendering - sorted index, sorted
+    columns, fixed precision - so it is stable across rebuilds, platforms and
+    pyarrow versions, and a reader can recompute it with pandas alone.
+    """
+    ordered = panel.sort_index()
+    ordered = ordered[sorted(ordered.columns)]
+    blob = ordered.to_csv(
+        float_format=f"%.{precision}g", lineterminator=chr(10)
+    ).encode("utf-8")
+    return hashlib.sha256(blob).hexdigest()
+
 
 @dataclass(frozen=True, slots=True)
 class BuildResult:
     panel: pd.DataFrame
     coverage: CoverageReport
     panel_path: Path
-    sha256: str
+    sha256: str              # of the file as written
+    content_sha256: str      # of the data itself, stable across rebuilds
     cache_summary: str
     data_card: Path
     sensitivity: pd.DataFrame
@@ -134,20 +161,30 @@ def build_features(cfg: BoltConfig, raw: dict) -> pd.DataFrame:
     return panel
 
 
-def freeze(cfg: BoltConfig, panel: pd.DataFrame) -> tuple[Path, str]:
-    """Write the panel to parquet and return its path and SHA-256."""
+def freeze(cfg: BoltConfig, panel: pd.DataFrame) -> tuple[Path, str, str]:
+    """Write the panel to parquet. Returns (path, file digest, content digest)."""
     out_dir = cfg.path("processed")
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / PANEL_FILENAME
     panel.to_parquet(path, engine="pyarrow", compression="snappy")
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    log.info("frozen dataset: %s (%.1f KB) sha256=%s",
-             path, path.stat().st_size / 1024, digest)
-    return path, digest
+
+    file_digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    data_digest = content_digest(panel)
+    log.info("frozen dataset: %s (%.1f KB)", path, path.stat().st_size / 1024)
+    log.info("  content sha256 (stable) : %s", data_digest)
+    log.info("  file sha256    (varies) : %s", file_digest)
+    return path, file_digest, data_digest
 
 
 def run_build(cfg: BoltConfig, *, refresh: bool = False) -> BuildResult:
     """Full Phase 1-2 build. Raises rather than producing a degraded dataset."""
+    # Read the code version FIRST. The build writes panel.parquet, DATA_CARD.md
+    # and the tables, all of which are tracked, so by the time the card is
+    # written the tree is dirty by the build's own hand and every card would be
+    # stamped "-dirty" no matter how clean the commit was.
+    from bolt.version import git_commit_sha
+
+    code_version = git_commit_sha(cfg.repo_root)
     cache = DiskCache(cfg.path("raw"))
     raw = ingest_all(cfg, cache, refresh=refresh)
     panel = build_features(cfg, raw)
@@ -178,7 +215,7 @@ def run_build(cfg: BoltConfig, *, refresh: bool = False) -> BuildResult:
     tables.mkdir(parents=True, exist_ok=True)
     sensitivity.to_csv(tables / "label_sensitivity.csv", index=False)
 
-    path, digest = freeze(cfg, panel)
+    path, digest, data_digest = freeze(cfg, panel)
 
     sources = {
         symbol: str(frame["source"].iloc[0])
@@ -186,9 +223,11 @@ def run_build(cfg: BoltConfig, *, refresh: bool = False) -> BuildResult:
     }
     notes = _build_notes(cfg, raw)
     card = write_data_card(
-        cfg, panel, report, digest, path, sources, raw["excluded_assets"], notes
+        cfg, panel, report, digest, path, sources, raw["excluded_assets"], notes,
+        content_sha256=data_digest, code_version=code_version,
     )
-    return BuildResult(panel, report, path, digest, cache.summary(), card, sensitivity, notes)
+    return BuildResult(panel, report, path, digest, data_digest, cache.summary(),
+                       card, sensitivity, notes)
 
 
 def _build_notes(cfg: BoltConfig, raw: dict) -> list[str]:
