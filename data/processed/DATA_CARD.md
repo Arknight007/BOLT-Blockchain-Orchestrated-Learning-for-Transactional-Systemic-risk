@@ -1,16 +1,14 @@
 # DATA CARD
 
-Generated automatically by `bolt build` on 2026-09-11 11:11 UTC.
+Generated automatically by `bolt build` on 2026-09-11 11:19 UTC.
 Do not edit by hand: this file is regenerated on every build and any manual
 change will be overwritten.
 
-- **Code version:** `3ef9dada6c0146efec9e682ffaf6703522bef1cc-dirty`
+- **Code version:** `9ed61035dd0c2b4f5eeb5ff343ee77b670f4bb13`
 - **Config:** `default.yaml`, universe `assets.yaml`
 - **Frozen dataset:** `data/processed/panel.parquet`
 - **Content SHA-256:** `da5ce8ebb5fbbfcc6d978c5ef179a42edca330c4f78b0b75ed9c5ff121c5c332` (format-independent)
 - **File SHA-256:** `804f2e7a249e7c0c4898b8da301d255e9f74d8809d77fa6c508961c4a8a80735` (the parquet bytes)
-
-> **Built from an uncommitted working tree.** The code version above ends in `-dirty`, so the exact code that produced this dataset is not recoverable from the repository. Commit, then rebuild, before relying on this card.
 
 - **Shape:** 16,854 rows x 25 columns
 - **Coverage:** 2020-01-01 to 2025-12-31, 10 assets
