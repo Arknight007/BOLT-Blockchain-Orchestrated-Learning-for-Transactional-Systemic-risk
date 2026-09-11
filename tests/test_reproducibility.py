@@ -280,3 +280,26 @@ def test_centrality_has_no_negative_zero():
     corr = pd.DataFrame(np.eye(5), index=names, columns=names)
     scores = eigen_centrality(corr, 0.30)
     assert not any(np.signbit(v) and v == 0.0 for v in scores.to_numpy())
+
+
+def test_code_version_ignores_generated_data_and_logs():
+    """A data card must not read "-dirty" because the build wrote its own outputs.
+
+    `bolt build` writes panel.parquet, DATA_CARD.md, the tables and a log. When
+    dirtiness was judged over the whole tree, the build dirtied itself before
+    the card was written and EVERY card reported "-dirty" regardless of how
+    clean the commit was - an untracked stray log in outputs/ was enough. The
+    claim a card makes is "this code produced this data", so the check is
+    scoped to the code.
+    """
+    from bolt.version import CODE_PATHS
+
+    for excluded in ("data", "outputs", "notebooks"):
+        assert excluded not in CODE_PATHS, (
+            f"{excluded}/ is generated or incidental; including it would make "
+            f"every data card report -dirty"
+        )
+    for required in ("src", "config", "contracts"):
+        assert required in CODE_PATHS, (
+            f"{required}/ determines pipeline behaviour and must count as code"
+        )

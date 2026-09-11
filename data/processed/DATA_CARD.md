@@ -1,14 +1,14 @@
 # DATA CARD
 
-Generated automatically by `bolt build` on 2026-09-11 10:57 UTC.
+Generated automatically by `bolt build` on 2026-09-11 11:11 UTC.
 Do not edit by hand: this file is regenerated on every build and any manual
 change will be overwritten.
 
-- **Code version:** `64394d243d85cd069ab7a6fbe6b76bff34a88cb0-dirty`
+- **Code version:** `3ef9dada6c0146efec9e682ffaf6703522bef1cc-dirty`
 - **Config:** `default.yaml`, universe `assets.yaml`
 - **Frozen dataset:** `data/processed/panel.parquet`
-- **Content SHA-256:** `da5ce8ebb5fbbfcc6d978c5ef179a42edca330c4f78b0b75ed9c5ff121c5c332` <- the reproducibility contract
-- **File SHA-256:** `804f2e7a249e7c0c4898b8da301d255e9f74d8809d77fa6c508961c4a8a80735` (this specific parquet file)
+- **Content SHA-256:** `da5ce8ebb5fbbfcc6d978c5ef179a42edca330c4f78b0b75ed9c5ff121c5c332` (format-independent)
+- **File SHA-256:** `804f2e7a249e7c0c4898b8da301d255e9f74d8809d77fa6c508961c4a8a80735` (the parquet bytes)
 
 > **Built from an uncommitted working tree.** The code version above ends in `-dirty`, so the exact code that produced this dataset is not recoverable from the repository. Commit, then rebuild, before relying on this card.
 
@@ -144,11 +144,14 @@ bolt build  --config config/default.yaml    # regenerates this file and the parq
 
 ## Verifying you hold the same data
 
-Use the **content** hash, not the file hash. Parquet embeds writer metadata that
-differs between runs, so two rebuilds of byte-identical data produce different
-file digests - measured on this project: `f8532919...` and `925ac6c8...` for
-content that `assert_frame_equal` confirmed identical. Hashing the file would
-therefore report a mismatch to anyone who rebuilt, which is exactly backwards.
+Either digest works. The **file** hash is the direct check: parquet is
+byte-deterministic for identical data, so a rebuild of the same inputs on the
+same code reproduces the same file.
+
+The **content** hash is the more durable one. It is taken over a canonical CSV
+rendering rather than the stored bytes, so it survives a future pyarrow or
+compression change that would alter the file while leaving the data untouched.
+Prefer it if you are checking across library versions.
 
 ```bash
 python -c "
@@ -160,9 +163,7 @@ print(hashlib.sha256(p.to_csv(float_format='%.10g', lineterminator=chr(10)).enco
 # expected: da5ce8ebb5fbbfcc6d978c5ef179a42edca330c4f78b0b75ed9c5ff121c5c332
 ```
 
-The file hash below is still recorded, but it answers a narrower question: did
-this exact artefact reach you intact.
-
-```
-file sha256: 804f2e7a249e7c0c4898b8da301d255e9f74d8809d77fa6c508961c4a8a80735
+```bash
+python -c "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('data/processed/panel.parquet').read_bytes()).hexdigest())"
+# expected: 804f2e7a249e7c0c4898b8da301d255e9f74d8809d77fa6c508961c4a8a80735
 ```

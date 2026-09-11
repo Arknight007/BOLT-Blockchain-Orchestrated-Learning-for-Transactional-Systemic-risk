@@ -54,3 +54,4 @@ Thumbs.db
 outputs/shots/
 outputs/serve_test.log
 outputs/monitor_run.txt
+outputs/*.txt
